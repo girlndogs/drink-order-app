@@ -43,9 +43,22 @@ button {
   width: 100%;
   border-radius: 10px;
   border: none;
+  font-weight: bold;
+}
+
+#enableSound {
+  background: #e67e22;
+  color: white;
+}
+
+.markFulfilled {
   background: green;
   color: white;
-  font-weight: bold;
+}
+
+#clearHistory {
+  background: red;
+  color: white;
 }
 </style>
 </head>
@@ -56,9 +69,11 @@ button {
   <h2>C&E's Cafe – Orders</h2>
 </header>
 
-<div class="container" id="orderList"></div>
-
-<button id="enableSound" style="margin:10px;padding:10px;border-radius:10px;">Enable Sounds 🔊</button>
+<div class="container">
+  <button id="enableSound">Enable Sounds 🔊</button>
+  <button id="clearHistory">Clear Order History 🗑️</button>
+  <div id="orderList"></div>
+</div>
 
 <audio id="meowSound" preload="auto">
   <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6c7c8f07c2.mp3?filename=cat-meow-14536.mp3" type="audio/mpeg">
@@ -66,8 +81,9 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -85,49 +101,64 @@ const list = document.getElementById("orderList");
 const meow = document.getElementById("meowSound");
 
 let previousCount = 0;
+let audioUnlocked = false;
 
+// Unlock audio after staff clicks enable
 const enableBtn = document.getElementById("enableSound");
 enableBtn.onclick = () => {
-  meow.play();  // play then pause to unlock audio
-  meow.pause();
+  meow.play().then(() => meow.pause()); // unlock
+  audioUnlocked = true;
   enableBtn.style.display = "none";
 };
 
+// Clear order history with confirmation
+const clearBtn = document.getElementById("clearHistory");
+clearBtn.onclick = () => {
+  if(confirm("Are you sure you want to clear all orders? This cannot be undone.")) {
+    remove(ordersRef).then(() => {
+      alert("All orders cleared!");
+    });
+  }
+};
+
+// Listen for real-time updates
 onValue(ordersRef, (snapshot) => {
   list.innerHTML = "";
   const orders = snapshot.val();
   const count = orders ? Object.keys(orders).length : 0;
 
-  // Play cat meow if a new order arrives
-  if (count > previousCount) {
-    meow.play();
+  // Play meow if new order arrives AND audio is unlocked
+  if (audioUnlocked && count > previousCount) {
+    meow.currentTime = 0;
+    meow.play().catch(e => console.log("Audio play blocked:", e));
   }
   previousCount = count;
 
-  for (let id in orders) {
-    const o = orders[id];
-    const div = document.createElement("div");
-    div.className = `order ${o.status.toLowerCase()}`;
-
-    div.innerHTML = `
-      <strong>${o.customer}</strong><br>
-      Drink: ${o.drink}<br>
-      Milk: ${o.milk}<br>
-      Sweetener: ${o.sweetener}<br>
-      Time: ${o.time}<br>
-      Status: ${o.status}
-    `;
-
-    if (o.status === "Pending") {
-      const btn = document.createElement("button");
-      btn.textContent = "Mark Fulfilled";
-      btn.onclick = () => {
-        update(ref(db, "orders/" + id), { status: "Fulfilled" });
-      };
-      div.appendChild(btn);
+  // Render orders
+  if(orders){
+    for (let id in orders) {
+      const o = orders[id];
+      const div = document.createElement("div");
+      div.className = `order ${o.status.toLowerCase()}`;
+      div.innerHTML = `
+        <strong>${o.customer}</strong><br>
+        Drink: ${o.drink}<br>
+        Milk: ${o.milk}<br>
+        Sweetener: ${o.sweetener}<br>
+        Time: ${o.time}<br>
+        Status: ${o.status}
+      `;
+      if(o.status === "Pending"){
+        const btn = document.createElement("button");
+        btn.textContent = "Mark Fulfilled";
+        btn.className = "markFulfilled";
+        btn.onclick = () => {
+          update(ref(db, "orders/" + id), { status: "Fulfilled" });
+        };
+        div.appendChild(btn);
+      }
+      list.appendChild(div);
     }
-
-    list.appendChild(div);
   }
 });
 </script>
