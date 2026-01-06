@@ -55,7 +55,7 @@
     <label for="temperature">Temperature:</label>
     <select id="temperature" required>
       <option value="">Please select</option>
-      <option>Piping Hot!</option>
+      <option>SUPER Hot!</option>
       <option>Hot</option>
       <option>Warm</option>
       <option>Cool</option>
@@ -66,6 +66,7 @@
     <select id="milk">
       <option value="">None</option>
       <option>Full Cream</option>
+      <option>Skim</option>
       <option>Oat</option>
       <option>Almond</option>
     </select>
@@ -73,8 +74,8 @@
     <label for="sweetener">Sweetener:</label>
     <select id="sweetener">
       <option value="">None</option>
-      <option>Sugar</option>
       <option>Honey</option>
+      <option>Sugar</option>
     </select>
 
     <button type="submit">Place Order</button>
@@ -87,7 +88,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // -------- Firebase config ----------
 const firebaseConfig = {
@@ -114,7 +115,7 @@ document.getElementById("orderForm").addEventListener("submit", e => {
     temperature: document.getElementById("temperature").value,
     milk: document.getElementById("milk").value || "None",
     sweetener: document.getElementById("sweetener").value || "None",
-    timestamp: new Date().toLocaleString(),
+    timestamp: new Date().toLocaleString(), // client-side timestamp
     fulfilled: false
   };
 
@@ -129,5 +130,3 @@ document.getElementById("orderForm").addEventListener("submit", e => {
 
 </body>
 </html>
-
-
