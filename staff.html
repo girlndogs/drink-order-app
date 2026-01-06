@@ -1,204 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C&E's Cafe – Staff Orders</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4a6fa5">
-<style>
-body {
-  font-family: 'Segoe UI', sans-serif;
-  margin: 0;
-  background: #f0f4fa;
-  color: #2a3a59;
-}
+  <meta charset="UTF-8">
+  <title>C&E's Cafe Staff</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-header {
-  background: #4a6fa5;
-  color: white;
-  text-align: center;
-  padding: 16px;
-}
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onChildAdded, remove } 
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getMessaging, getToken, onMessage } 
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
-.container {
-  padding: 16px;
-  max-width: 700px;
-  margin: auto;
-}
+    // 🔹 Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+      authDomain: "drink-order-test.firebaseapp.com",
+      databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "drink-order-test",
+      storageBucket: "drink-order-test.firebasestorage.app",
+      messagingSenderId: "90936648282",
+      appId: "1:90936648282:web:b9854c3438319db80cae63"
+};
 
-button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: none;
-  font-size: 16px;
-  margin-bottom: 12px;
-  cursor: pointer;
-}
+    // 🔹 Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const messaging = getMessaging(app);
 
-#enableSound {
-  background: #4a6fa5;
-  color: white;
-}
+    // 🔹 Ask permission for notifications
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        getToken(messaging, { vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio" })
+          .then(async (token) => {
+            console.log("FCM TOKEN:", token);
 
-#clearOrders {
-  background: #b44343;
-  color: white;
-}
+            // 🔹 Subscribe device to "staff" topic via Firebase REST API
+            await fetch(
+              `https://iid.googleapis.com/iid/v1/${token}/rel/topics/staff`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: "key=684405ef0d259d5e2442e65919738262414eaf9f"
+                }
+              }
+            );
+            console.log("Subscribed to topic: staff");
+          });
+      }
+    });
 
-.order {
-  background: white;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-}
+    // 🔹 Handle notifications while app is open
+    onMessage(messaging, payload => {
+      console.log("Foreground notification received:", payload);
 
-.popup {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #4a6fa5;
-  color: white;
-  padding: 16px 24px;
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-  display: none;
-  z-index: 9999;
-  font-weight: bold;
-}
-</style>
+      // Play bell sound
+      const audio = new Audio("bell.mp3");
+      audio.play().catch(err => console.log("Audio blocked:", err));
+
+      // Show popup
+      const popup = document.getElementById("popup");
+      popup.textContent = `${payload.notification.title} - ${payload.notification.body}`;
+      popup.style.display = "block";
+      setTimeout(() => { popup.style.display = "none"; }, 5000);
+    });
+
+    // 🔹 Database reference
+    const ordersRef = ref(db, "orders");
+
+    // Display incoming orders in staff page
+    const ordersDiv = document.getElementById("orders");
+    onChildAdded(ordersRef, (snapshot) => {
+      const order = snapshot.val();
+      const orderEl = document.createElement("div");
+      orderEl.textContent = `${order.customerName} ordered ${order.drink} (${order.temperature})`;
+      ordersDiv.prepend(orderEl);
+    });
+
+    // 🔹 Clear orders
+    function clearOrders() {
+      if (confirm("Are you sure you want to clear the order history?")) {
+        remove(ordersRef);
+        ordersDiv.innerHTML = "";
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #eef3fb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: url('https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg') no-repeat center/cover;
+      height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2em;
+      font-weight: bold;
+      text-shadow: 1px 1px 3px #000;
+    }
+    main {
+      padding: 20px;
+    }
+    #orders div {
+      padding: 10px;
+      margin: 5px 0;
+      background-color: #cce5ff;
+      border-radius: 5px;
+    }
+    #popup {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #ffeb3b;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px #333;
+      display: none;
+      z-index: 1000;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
 </head>
 
 <body>
-
-<header>
-  <h2>☕ C&E's Cafe – Staff Orders</h2>
-</header>
-
-<div class="container">
-  <button id="enableSound">🔔 Enable Alerts (REQUIRED)</button>
-  <button id="clearOrders">🧹 Clear Order History</button>
-  <div id="orders"></div>
-</div>
-
-<div id="popup" class="popup"></div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { getMessaging, getToken }
-  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
-  
-/* 🔥 FIREBASE */
-const firebaseConfig = {
-  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
-  authDomain: "drink-order-test.firebaseapp.com",
-  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "drink-order-test",
-  storageBucket: "drink-order-test.firebasestorage.app",
-  messagingSenderId: "90936648282",
-  appId: "1:90936648282:web:b9854c3438319db80cae63"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const messaging = getMessaging(app);
-
-Notification.requestPermission().then(permission => {
-  if (permission === "granted") {
-    getToken(messaging, {
-      vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio"
-    }).then(token => {
-      console.log("FCM TOKEN:", token);
-    });
-  }
-});
-const ordersRef = ref(db, "orders");
-
-const ordersDiv = document.getElementById("orders");
-const popup = document.getElementById("popup");
-
-/* 🔊 AUDIO SETUP (ANDROID SAFE) */
-let audioCtx;
-let bellBuffer;
-let soundEnabled = false;
-
-async function loadBell() {
-  const response = await fetch(
-    "https://cdn.pixabay.com/download/audio/2022/03/15/audio_8e61f0c4b6.mp3"
-  );
-  const arrayBuffer = await response.arrayBuffer();
-  bellBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-}
-
-function playBell() {
-  if (!soundEnabled || !bellBuffer) return;
-  const source = audioCtx.createBufferSource();
-  source.buffer = bellBuffer;
-  source.connect(audioCtx.destination);
-  source.start(0);
-}
-
-/* 🔔 ENABLE ALERTS BUTTON */
-document.getElementById("enableSound").onclick = async () => {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await audioCtx.resume();
-  await loadBell();
-  soundEnabled = true;
-  alert("Alerts enabled! Sound will now play 🔔");
-};
-
-/* 🧹 CLEAR ORDERS */
-document.getElementById("clearOrders").onclick = () => {
-  if (confirm("Are you sure you want to clear all order history?")) {
-    remove(ordersRef);
-    ordersDiv.innerHTML = "";
-  }
-};
-
-/* 🔔 NOTIFICATION */
-function notify(order) {
-  popup.textContent = `☕ New order for ${order.customer}!`;
-  popup.style.display = "block";
-  setTimeout(() => popup.style.display = "none", 5000);
-
-  playBell();
-
-  if ("speechSynthesis" in window && soundEnabled) {
-    const msg = new SpeechSynthesisUtterance(
-      `Attention employees! We have a new order for ${order.customer}`
-    );
-    msg.rate = 0.9;
-    speechSynthesis.speak(msg);
-  }
-}
-
-/* 🔄 REAL-TIME LISTENER */
-onChildAdded(ordersRef, snapshot => {
-  const order = snapshot.val();
-
-  const div = document.createElement("div");
-  div.className = "order";
-  div.innerHTML = `
-    <strong>${order.customer}</strong><br>
-    ${order.drink} – ${order.temperature}<br>
-    Milk: ${order.milk}<br>
-    Sweetener: ${order.sweetener}<br>
-    <em>${order.time}</em>
-  `;
-
-  ordersDiv.prepend(div);
-  notify(order);
-});
-</script>
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./service-worker.js");
-}
-</script>
+  <header>C&E's Cafe Staff</header>
+  <main>
+    <div id="popup"></div>
+    <h2>Incoming Orders</h2>
+    <div id="orders"></div>
+    <button onclick="clearOrders()">Clear Order History</button>
+  </main>
 </body>
 </html>
-
