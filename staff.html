@@ -3,62 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C&E's Cafe – Staff</title>
+<title>C&E's Cafe – Staff Orders</title>
 
 <style>
 body {
+  font-family: 'Segoe UI', sans-serif;
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f4f6f8;
+  background: #f0f4fa;
+  color: #2a3a59;
 }
 
 header {
-  background: #2c3e50;
+  background: #4a6fa5;
   color: white;
-  padding: 16px;
   text-align: center;
+  padding: 16px;
 }
 
 .container {
   padding: 16px;
+  max-width: 700px;
+  margin: auto;
+}
+
+button {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#enableSound {
+  background: #4a6fa5;
+  color: white;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+#clearOrders {
+  background: #b44343;
+  color: white;
+  width: 100%;
+  margin-bottom: 12px;
 }
 
 .order {
   background: white;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.popup {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4a6fa5;
+  color: white;
+  padding: 16px 24px;
   border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-left: 6px solid orange;
-}
-
-.order.fulfilled {
-  border-left-color: green;
-  opacity: 0.6;
-}
-
-button {
-  margin-top: 10px;
-  padding: 10px;
-  width: 100%;
-  border-radius: 10px;
-  border: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  display: none;
+  z-index: 9999;
   font-weight: bold;
-}
-
-#enableSound {
-  background: #e67e22;
-  color: white;
-}
-
-.markFulfilled {
-  background: green;
-  color: white;
-}
-
-#clearHistory {
-  background: red;
-  color: white;
 }
 </style>
 </head>
@@ -66,24 +76,28 @@ button {
 <body>
 
 <header>
-  <h2>C&E's Cafe – Orders</h2>
+  <h2>☕ C&E's Cafe – Staff Orders</h2>
 </header>
 
 <div class="container">
-  <button id="enableSound">Enable Sounds 🔊</button>
-  <button id="clearHistory">Clear Order History 🗑️</button>
-  <div id="orderList"></div>
+  <button id="enableSound">🔔 Enable Alerts</button>
+  <button id="clearOrders">🧹 Clear Order History</button>
+
+  <div id="orders"></div>
 </div>
 
-<audio id="meowSound" preload="auto">
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6c7c8f07c2.mp3?filename=cat-meow-14536.mp3" type="audio/mpeg">
+<div id="popup" class="popup"></div>
+
+<!-- Bell sound -->
+<audio id="bell" preload="auto">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8e61f0c4b6.mp3?filename=service-bell-104676.mp3" type="audio/mpeg">
 </audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase config
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -97,72 +111,74 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
-const list = document.getElementById("orderList");
-const meow = document.getElementById("meowSound");
 
-let previousCount = 0;
-let audioUnlocked = false;
+const ordersDiv = document.getElementById("orders");
+const popup = document.getElementById("popup");
+const bell = document.getElementById("bell");
 
-// Unlock audio after staff clicks enable
-const enableBtn = document.getElementById("enableSound");
-enableBtn.onclick = () => {
-  meow.play().then(() => meow.pause()); // unlock
-  audioUnlocked = true;
-  enableBtn.style.display = "none";
+let soundEnabled = false;
+
+/* 🔔 ENABLE SOUND */
+document.getElementById("enableSound").onclick = () => {
+  bell.play().then(() => {
+    bell.pause();
+    bell.currentTime = 0;
+    soundEnabled = true;
+    alert("Alerts enabled! 🔔");
+  }).catch(() => {
+    alert("Please tap again to allow sound.");
+  });
 };
 
-// Clear order history with confirmation
-const clearBtn = document.getElementById("clearHistory");
-clearBtn.onclick = () => {
-  if(confirm("Are you sure you want to clear all orders? This cannot be undone.")) {
-    remove(ordersRef).then(() => {
-      alert("All orders cleared!");
-    });
+/* 🧹 CLEAR ORDERS */
+document.getElementById("clearOrders").onclick = () => {
+  if (confirm("Are you sure you want to clear all order history?")) {
+    remove(ordersRef);
+    ordersDiv.innerHTML = "";
   }
 };
 
-// Listen for real-time updates
-onValue(ordersRef, (snapshot) => {
-  list.innerHTML = "";
-  const orders = snapshot.val();
-  const count = orders ? Object.keys(orders).length : 0;
+/* 🔔 POPUP + SOUND + VOICE */
+function notify(order) {
+  popup.textContent = `☕ New order for ${order.customer}!`;
+  popup.style.display = "block";
 
-  // Play meow if new order arrives AND audio is unlocked
-  if (audioUnlocked && count > previousCount) {
-    meow.currentTime = 0;
-    meow.play().catch(e => console.log("Audio play blocked:", e));
-  }
-  previousCount = count;
+  setTimeout(() => popup.style.display = "none", 5000);
 
-  // Render orders
-  if(orders){
-    for (let id in orders) {
-      const o = orders[id];
-      const div = document.createElement("div");
-      div.className = `order ${o.status.toLowerCase()}`;
-      div.innerHTML = `
-        <strong>${o.customer}</strong><br>
-        Drink: ${o.drink}<br>
-        Milk: ${o.milk}<br>
-        Sweetener: ${o.sweetener}<br>
-        Time: ${o.time}<br>
-        Status: ${o.status}
-      `;
-      if(o.status === "Pending"){
-        const btn = document.createElement("button");
-        btn.textContent = "Mark Fulfilled";
-        btn.className = "markFulfilled";
-        btn.onclick = () => {
-          update(ref(db, "orders/" + id), { status: "Fulfilled" });
-        };
-        div.appendChild(btn);
-      }
-      list.appendChild(div);
+  if (soundEnabled) {
+    bell.currentTime = 0;
+    bell.play();
+
+    // Optional voice announcement
+    if ("speechSynthesis" in window) {
+      const msg = new SpeechSynthesisUtterance(
+        `Attention employees! We have a new order for ${order.customer}`
+      );
+      msg.rate = 0.9;
+      speechSynthesis.speak(msg);
     }
   }
+}
+
+/* 🔄 REAL-TIME LISTENER */
+onChildAdded(ordersRef, snapshot => {
+  const order = snapshot.val();
+
+  const div = document.createElement("div");
+  div.className = "order";
+  div.innerHTML = `
+    <strong>${order.customer}</strong><br>
+    Drink: ${order.drink}<br>
+    Temp: ${order.temperature}<br>
+    Milk: ${order.milk}<br>
+    Sweetener: ${order.sweetener}<br>
+    <em>${order.time}</em>
+  `;
+
+  ordersDiv.prepend(div);
+  notify(order);
 });
 </script>
 
 </body>
 </html>
-
