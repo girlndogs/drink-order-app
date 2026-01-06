@@ -4,22 +4,71 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe - Staff Orders</title>
+
 <style>
-  body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; padding:0; }
-  header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
-  h1 { margin:0; }
-  main { padding:20px; max-width:800px; margin:auto; }
-  .order { border:1px solid #ccc; padding:10px; margin-bottom:10px; background:white; border-radius:5px; position:relative; }
-  .fulfilled { color:green; font-size:20px; position:absolute; top:10px; right:10px; }
-  button { padding:5px 10px; background:#3f7fbf; color:white; border:none; cursor:pointer; border-radius:3px; }
-  button:hover { background:#2e5f9e; }
+body {
+  font-family: Arial, sans-serif;
+  background:#eef4fc;
+  margin:0;
+  padding:0;
+}
+
+header {
+  background:#3f7fbf;
+  color:white;
+  text-align:center;
+  padding:15px;
+}
+
+main {
+  padding:20px;
+  max-width:800px;
+  margin:auto;
+}
+
+.order {
+  border:1px solid #ccc;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:6px;
+  position:relative;
+}
+
+/* STATUS COLOURS */
+.new-order { background:#ffe6e6; }          /* light red */
+.acknowledged { background:#fff3cd; }       /* yellow/orange */
+.fulfilled-order { background:#e6f4ea; }    /* green */
+
+.fulfilled-check {
+  position:absolute;
+  top:10px;
+  right:10px;
+  font-size:22px;
+  color:green;
+}
+
+button {
+  margin-top:8px;
+  margin-right:6px;
+  padding:6px 12px;
+  background:#3f7fbf;
+  color:white;
+  border:none;
+  cursor:pointer;
+  border-radius:4px;
+}
+
+button:hover {
+  background:#2e5f9e;
+}
 </style>
 </head>
+
 <body>
 
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
-  <button id="enableSound">Enable Notifications</button>
+  <button id="enableSound">Enable Notifications 🔔</button>
 </header>
 
 <main>
@@ -30,9 +79,15 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onChildAdded, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  onChildAdded,
+  onChildChanged,
+  update
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase config
+/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -50,17 +105,41 @@ const ordersRef = ref(db, "orders");
 const ordersDiv = document.getElementById("orders");
 const bell = document.getElementById("bellSound");
 
+let soundEnabled = false;
+let bellInterval = null;
+
+/* Enable sound (required once) */
 document.getElementById("enableSound").addEventListener("click", () => {
-  bell.play().then(() => bell.pause());
-  alert("Notifications enabled!");
+  bell.play().then(() => {
+    bell.pause();
+    bell.currentTime = 0;
+    soundEnabled = true;
+    alert("Notifications enabled!");
+  });
 });
 
+/* Start repeating bell */
+function startBell() {
+  if (!soundEnabled || bellInterval) return;
+  bellInterval = setInterval(() => {
+    bell.currentTime = 0;
+    bell.play().catch(()=>{});
+  }, 15000);
+}
+
+/* Stop bell */
+function stopBell() {
+  clearInterval(bellInterval);
+  bellInterval = null;
+}
+
+/* NEW ORDER */
 onChildAdded(ordersRef, snapshot => {
   const order = snapshot.val();
   const key = snapshot.key;
 
   const orderDiv = document.createElement("div");
-  orderDiv.classList.add("order");
+  orderDiv.className = "order new-order";
   orderDiv.id = key;
 
   orderDiv.innerHTML = `
@@ -69,26 +148,53 @@ onChildAdded(ordersRef, snapshot => {
     <strong>Temperature:</strong> ${order.temperature}<br>
     <strong>Milk:</strong> ${order.milk}<br>
     <strong>Sweetener:</strong> ${order.sweetener}<br>
-    <strong>Time:</strong> ${order.timestamp || "Unknown"}<br>
-    <button class="fulfillBtn">Mark Fulfilled ✅</button>
+    <strong>Time:</strong> ${order.timestamp}<br>
+
+    <button class="ackBtn">Order Received 🛎️</button>
+    <button class="fulfillBtn">Order Fulfilled ✅</button>
   `;
 
   ordersDiv.prepend(orderDiv);
 
-  // Play bell notification if enabled
-  bell.play().catch(()=>{});
+  startBell();
 
-  const btn = orderDiv.querySelector(".fulfillBtn");
-  btn.addEventListener("click", () => {
+  /* Acknowledge */
+  orderDiv.querySelector(".ackBtn").addEventListener("click", () => {
+    update(ref(db, `orders/${key}`), { acknowledged: true });
+  });
+
+  /* Fulfill */
+  orderDiv.querySelector(".fulfillBtn").addEventListener("click", () => {
     update(ref(db, `orders/${key}`), { fulfilled: true });
-    orderDiv.querySelector(".fulfillBtn").remove();
+  });
+});
+
+/* HANDLE STATUS UPDATES */
+onChildChanged(ordersRef, snapshot => {
+  const order = snapshot.val();
+  const key = snapshot.key;
+  const orderDiv = document.getElementById(key);
+  if (!orderDiv) return;
+
+  if (order.acknowledged && !order.fulfilled) {
+    orderDiv.className = "order acknowledged";
+    stopBell();
+  }
+
+  if (order.fulfilled) {
+    orderDiv.className = "order fulfilled-order";
+    orderDiv.querySelectorAll("button").forEach(b => b.remove());
+
     const check = document.createElement("span");
-    check.classList.add("fulfilled");
+    check.className = "fulfilled-check";
     check.textContent = "✅";
     orderDiv.appendChild(check);
-  });
+  }
 });
 </script>
 
 </body>
 </html>
+
+</html>
+
