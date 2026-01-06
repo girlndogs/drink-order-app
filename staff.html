@@ -4,43 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe - Staff Orders</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3f7fbf">
 <style>
-  body { font-family: Arial, sans-serif; background: #eef4fc; margin:0; padding:0; }
-  header { background: #3f7fbf; color: white; text-align:center; padding:15px; }
+  body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; padding:0; }
+  header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
   h1 { margin:0; }
-  #orders { margin:20px; }
-  .order { background:white; border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; position: relative; }
-  .fulfilled { opacity:0.6; background:#e6ffe6; }
-  .checkmark { color: green; font-size: 20px; position: absolute; top:10px; right:10px; }
-  #popup { display:none; position: fixed; top:20px; right:20px; background:#fffae6; border:2px solid #ffc107; padding:15px; border-radius:5px; z-index:1000; }
-  button { padding:8px 12px; font-size:14px; margin-top:8px; cursor:pointer; }
+  main { padding:20px; max-width:800px; margin:auto; }
+  .order { border:1px solid #ccc; padding:10px; margin-bottom:10px; background:white; border-radius:5px; position:relative; }
+  .fulfilled { color:green; font-size:20px; position:absolute; top:10px; right:10px; }
+  button { padding:5px 10px; background:#3f7fbf; color:white; border:none; cursor:pointer; border-radius:3px; }
+  button:hover { background:#2e5f9e; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
+  <button id="enableSound">Enable Notifications</button>
 </header>
 
-<div id="orders"></div>
-<button id="clearOrders">Clear Order History</button>
-<div id="popup"></div>
+<main>
+  <div id="orders"></div>
+</main>
+
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onChildAdded, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+import { getDatabase, ref, onChildAdded, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// -------- Firebase config ----------
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "drink-order-test",
-  storageBucket: "drink-order-test.firebasestorage.app",
+  storageBucket: "drink-order-test.firebasedestorage.app",
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
@@ -48,106 +46,49 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
-const staffTokensRef = ref(db, "staffTokens");
 
-const messaging = getMessaging();
-const bell = document.getElementById("bellSound");
-const popup = document.getElementById("popup");
 const ordersDiv = document.getElementById("orders");
+const bell = document.getElementById("bellSound");
 
-// -------- Register staff device token ----------
-getToken(messaging, { vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio" })
-  .then(token => set(ref(db, "staffTokens/" + token), true))
-  .catch(err => console.log("FCM token error:", err));
-
-// Listen for messages while app is open
-onMessage(messaging, payload => {
-  showPopup(`${payload.notification.title}: ${payload.notification.body}`);
-  bell.play().catch(e => console.log("Audio blocked:", e));
+document.getElementById("enableSound").addEventListener("click", () => {
+  bell.play().then(() => bell.pause());
+  alert("Notifications enabled!");
 });
 
-// -------- Display orders ----------
 onChildAdded(ordersRef, snapshot => {
   const order = snapshot.val();
-  const orderId = snapshot.key;
+  const key = snapshot.key;
 
-  const div = document.createElement("div");
-  div.classList.add("order");
-  div.id = `order-${orderId}`;
+  const orderDiv = document.createElement("div");
+  orderDiv.classList.add("order");
+  orderDiv.id = key;
 
-  // If already fulfilled, mark as such
-  if(order.fulfilled){
-    div.classList.add("fulfilled");
-    const mark = document.createElement("span");
-    mark.classList.add("checkmark");
-    mark.innerHTML = "&#10004;"; // green check
-    div.appendChild(mark);
-  }
-
-  // Build order details
-  let orderText = `
+  orderDiv.innerHTML = `
     <strong>Customer:</strong> ${order.customerName}<br>
     <strong>Drink:</strong> ${order.drink}<br>
     <strong>Temperature:</strong> ${order.temperature}<br>
-    <strong>Milk:</strong> ${order.milk || "None"}<br>
-    <strong>Sweetener:</strong> ${order.sweetener || "None"}<br>
-    <strong>Time:</strong> ${order.timestamp || "Unknown"}
+    <strong>Milk:</strong> ${order.milk}<br>
+    <strong>Sweetener:</strong> ${order.sweetener}<br>
+    <strong>Time:</strong> ${order.timestamp || "Unknown"}<br>
+    <button class="fulfillBtn">Mark Fulfilled ✅</button>
   `;
 
-  const btn = document.createElement("button");
-  btn.textContent = "Mark as Completed";
+  ordersDiv.prepend(orderDiv);
+
+  // Play bell notification if enabled
+  bell.play().catch(()=>{});
+
+  const btn = orderDiv.querySelector(".fulfillBtn");
   btn.addEventListener("click", () => {
-    update(ref(db, `orders/${orderId}`), { fulfilled: true })
-      .then(()=>{
-        div.classList.add("fulfilled");
-        const mark = document.createElement("span");
-        mark.classList.add("checkmark");
-        mark.innerHTML = "&#10004;"; // green check
-        div.appendChild(mark);
-        btn.disabled = true;
-      })
-      .catch(err=>console.log(err));
+    update(ref(db, `orders/${key}`), { fulfilled: true });
+    orderDiv.querySelector(".fulfillBtn").remove();
+    const check = document.createElement("span");
+    check.classList.add("fulfilled");
+    check.textContent = "✅";
+    orderDiv.appendChild(check);
   });
-
-  div.innerHTML = orderText;
-  if(!order.fulfilled) div.appendChild(btn);
-  ordersDiv.appendChild(div);
-
-  // Popup + bell
-  showPopup(`New order from ${order.customerName}`);
-  bell.play().catch(e => console.log("Audio blocked:", e));
 });
-
-// -------- Popup function ----------
-function showPopup(msg){
-  popup.textContent = msg;
-  popup.style.display = "block";
-  setTimeout(()=>{ popup.style.display = "none"; }, 5000);
-}
-
-// -------- Clear all orders ----------
-document.getElementById("clearOrders").addEventListener("click", ()=>{
-  if(confirm("Are you sure you want to clear all orders?")){
-    remove(ordersRef)
-      .then(()=>{ ordersDiv.innerHTML=""; alert("Order history cleared!"); })
-      .catch(err=>console.log(err));
-  }
-});
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('Service Worker registered.', reg))
-      .catch(err => console.log('Service Worker registration failed:', err));
-  });
-}
 </script>
 
 </body>
 </html>
-
-
-
-
