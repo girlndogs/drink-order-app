@@ -31,7 +31,7 @@ main {
 
 .order {
   border:1px solid #ccc;
-  padding:12px;
+  padding:12px 12px 48px; /* extra bottom space for button */
   margin-bottom:12px;
   border-radius:6px;
   position:relative;
@@ -69,6 +69,13 @@ button:hover {
 
 .clear-btn:hover {
   background:#a93226;
+}
+
+/* Delivered button positioning */
+.fulfillBtn {
+  position:absolute;
+  bottom:10px;
+  right:10px;
 }
 </style>
 </head>
@@ -119,7 +126,7 @@ const bell = document.getElementById("bellSound");
 let soundEnabled = false;
 let bellInterval = null;
 
-/* Enable sound (required once) */
+/* Enable sound */
 document.getElementById("enableSound").addEventListener("click", () => {
   bell.play().then(() => {
     bell.pause();
@@ -158,10 +165,10 @@ onChildAdded(ordersRef, snapshot => {
     <strong>Temperature:</strong> ${order.temperature}<br>
     <strong>Milk:</strong> ${order.milk}<br>
     <strong>Sweetener:</strong> ${order.sweetener}<br>
-    <strong>Time:</strong> ${order.timestamp}<br>
+    <strong>Time:</strong> ${order.timestamp}<br><br>
 
-    <button class="ackBtn">Order Received 🛎️</button>
-    <button class="fulfillBtn">Order Fulfilled ✅</button>
+    <button class="ackBtn">I’ll make that now! ☕</button>
+    <button class="fulfillBtn">Delivered to customer! ✅</button>
   `;
 
   ordersDiv.prepend(orderDiv);
@@ -199,7 +206,7 @@ onChildChanged(ordersRef, snapshot => {
   }
 });
 
-/* Clear fulfilled orders only */
+/* Clear fulfilled orders */
 document.getElementById("clearFulfilled").addEventListener("click", () => {
   if (!confirm("Clear all fulfilled orders?")) return;
 
@@ -212,6 +219,8 @@ document.getElementById("clearFulfilled").addEventListener("click", () => {
 
 </body>
 </html>
+
+
 
 
 
