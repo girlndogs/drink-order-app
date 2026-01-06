@@ -1,0 +1,20 @@
+{
+  "name": "C&E's Cafe Staff",
+  "short_name": "Cafe Staff",
+  "start_url": "./staff.html",
+  "display": "standalone",
+  "background_color": "#4a6fa5",
+  "theme_color": "#4a6fa5",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
