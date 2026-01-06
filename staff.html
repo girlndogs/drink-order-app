@@ -6,15 +6,16 @@
 <title>C&E's Cafe - Staff Orders</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#3f7fbf">
-
 <style>
   body { font-family: Arial, sans-serif; background: #eef4fc; margin:0; padding:0; }
   header { background: #3f7fbf; color: white; text-align:center; padding:15px; }
   h1 { margin:0; }
   #orders { margin:20px; }
-  .order { background:white; border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; }
+  .order { background:white; border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; position: relative; }
+  .fulfilled { opacity:0.6; background:#e6ffe6; }
+  .checkmark { color: green; font-size: 20px; position: absolute; top:10px; right:10px; }
   #popup { display:none; position: fixed; top:20px; right:20px; background:#fffae6; border:2px solid #ffc107; padding:15px; border-radius:5px; z-index:1000; }
-  button { padding:10px 15px; font-size:16px; margin:10px 0; }
+  button { padding:8px 12px; font-size:14px; margin-top:8px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -30,10 +31,10 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onChildAdded, set, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onChildAdded, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
-// -------- Firebase config --------
+// -------- Firebase config ----------
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -49,50 +50,82 @@ const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
 const staffTokensRef = ref(db, "staffTokens");
 
-// -------- Messaging setup --------
 const messaging = getMessaging();
+const bell = document.getElementById("bellSound");
+const popup = document.getElementById("popup");
+const ordersDiv = document.getElementById("orders");
 
-// On page load, get a token and save it in database
+// -------- Register staff device token ----------
 getToken(messaging, { vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio" })
-  .then(token => {
-    console.log("Staff FCM token:", token);
-    // Save staff token in DB so Cloud Function can send notifications
-    set(ref(db, "staffTokens/" + token), true);
-  })
-  .catch(err => console.log("Error getting FCM token:", err));
+  .then(token => set(ref(db, "staffTokens/" + token), true))
+  .catch(err => console.log("FCM token error:", err));
 
-// Listen for messages while staff app is open
+// Listen for messages while app is open
 onMessage(messaging, payload => {
-  console.log("Message received: ", payload);
-  showPopup(payload.notification.title + " - " + payload.notification.body);
-  document.getElementById("bellSound").play().catch(e => console.log("Audio blocked:", e));
+  showPopup(`${payload.notification.title}: ${payload.notification.body}`);
+  bell.play().catch(e => console.log("Audio blocked:", e));
 });
 
-// -------- Display orders --------
-const ordersDiv = document.getElementById("orders");
-const popup = document.getElementById("popup");
-const bell = document.getElementById("bellSound");
-
+// -------- Display orders ----------
 onChildAdded(ordersRef, snapshot => {
   const order = snapshot.val();
+  const orderId = snapshot.key;
+
   const div = document.createElement("div");
   div.classList.add("order");
-  div.textContent = `${order.customerName} ordered ${order.drink} (${order.temperature})`;
+  div.id = `order-${orderId}`;
+
+  // If already fulfilled, mark as such
+  if(order.fulfilled){
+    div.classList.add("fulfilled");
+    const mark = document.createElement("span");
+    mark.classList.add("checkmark");
+    mark.innerHTML = "&#10004;"; // green check
+    div.appendChild(mark);
+  }
+
+  // Build order details
+  let orderText = `
+    <strong>Customer:</strong> ${order.customerName}<br>
+    <strong>Drink:</strong> ${order.drink}<br>
+    <strong>Temperature:</strong> ${order.temperature}<br>
+    <strong>Milk:</strong> ${order.milk || "None"}<br>
+    <strong>Sweetener:</strong> ${order.sweetener || "None"}<br>
+    <strong>Time:</strong> ${order.timestamp || "Unknown"}
+  `;
+
+  const btn = document.createElement("button");
+  btn.textContent = "Mark as Completed";
+  btn.addEventListener("click", () => {
+    update(ref(db, `orders/${orderId}`), { fulfilled: true })
+      .then(()=>{
+        div.classList.add("fulfilled");
+        const mark = document.createElement("span");
+        mark.classList.add("checkmark");
+        mark.innerHTML = "&#10004;"; // green check
+        div.appendChild(mark);
+        btn.disabled = true;
+      })
+      .catch(err=>console.log(err));
+  });
+
+  div.innerHTML = orderText;
+  if(!order.fulfilled) div.appendChild(btn);
   ordersDiv.appendChild(div);
 
-  // Bell & popup
-  bell.play().catch(err => console.log("Audio blocked:", err));
-  showPopup(`${order.customerName} ordered ${order.drink} (${order.temperature})`);
+  // Popup + bell
+  showPopup(`New order from ${order.customerName}`);
+  bell.play().catch(e => console.log("Audio blocked:", e));
 });
 
-// -------- Popup function --------
+// -------- Popup function ----------
 function showPopup(msg){
   popup.textContent = msg;
   popup.style.display = "block";
   setTimeout(()=>{ popup.style.display = "none"; }, 5000);
 }
 
-// -------- Clear orders --------
+// -------- Clear all orders ----------
 document.getElementById("clearOrders").addEventListener("click", ()=>{
   if(confirm("Are you sure you want to clear all orders?")){
     remove(ordersRef)
@@ -101,7 +134,8 @@ document.getElementById("clearOrders").addEventListener("click", ()=>{
   }
 });
 </script>
-  <script>
+
+<script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
@@ -110,7 +144,10 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
 </body>
 </html>
+
+
 
 
