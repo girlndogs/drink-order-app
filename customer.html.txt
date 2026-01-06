@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0S
+">
+<title>Drink Order</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #f4f6f8;
+  }
+
+  header {
+    background: #2f80ed;
+    color: white;
+    padding: 16px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .container {
+    padding: 16px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  .card h3 {
+    margin: 0 0 8px;
+  }
+
+  select, input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+  }
+
+  button {
+    width: 100%;
+    background: #2f80ed;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:active {
+    opacity: 0.9;
+  }
+</style>
+</head>
+
+<body>
+
+<header>Test Drink Ordering</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>Select Drink</h3>
+    <select id="drink">
+      <option>Drink A</option>
+      <option>Drink B</option>
+      <option>Drink C</option>
+      <option>Drink D</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h3>Table Number</h3>
+    <input type="number" id="table" placeholder="e.g. 12">
+  </div>
+
+  <button onclick="placeOrder()">Submit Order</button>
+
+</div>
+
+<script>
+function placeOrder() {
+  const drink = document.getElementById("drink").value;
+  const table = document.getElementById("table").value;
+
+  const orders = JSON.parse(localStorage.getItem("orders")) || [];
+
+  orders.push({
+    drink,
+    table,
+    status: "Pending",
+    time: new Date().toLocaleTimeString()
+  });
+
+  localStorage.setItem("orders", JSON.stringify(orders));
+  alert("Order submitted!");
+}
+</script>
+
+</body>
+</html>
