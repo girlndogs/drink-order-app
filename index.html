@@ -20,15 +20,15 @@ header {
 }
 
 header img {
-  width: 60px;
-  border-radius: 50%;
+  width: 80px;
+  border-radius: 10px;
   margin-bottom: 8px;
 }
 
 .hero {
   width: 100%;
   height: 180px;
-  background-image: url("https://images.unsplash.com/photo-1495474472287-4d71bcdd2085");
+  background-image: url("https://1drv.ms/i/c/d64ad9a2fafb0fe4/IQAyzdvZbxBTQrUVJfs-6wxSAX6MPMvi-wlnCIyOIy5bO0w");
   background-size: cover;
   background-position: center;
 }
@@ -45,7 +45,7 @@ header img {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-select, button {
+input, select, button {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
@@ -73,7 +73,7 @@ footer {
 <body>
 
 <header>
-  <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93" alt="Cafe Logo">
+  <img src="https://1drv.ms/i/c/d64ad9a2fafb0fe4/IQAyzdvZbxBTQrUVJfs-6wxSAX6MPMvi-wlnCIyOIy5bO0w" alt="Cafe Logo">
   <h2>C&E's Cafe</h2>
 </header>
 
@@ -82,19 +82,8 @@ footer {
 <div class="container">
 
   <div class="card">
-    <h3>Customer</h3>
-    <select id="customer">
-      <option>Great Grandma</option>
-      <option>Grandpa</option>
-      <option>Odette</option>
-      <option>Aunty Miri</option>
-      <option>Matt</option>
-      <option>Naomi</option>
-      <option>Ben</option>
-      <option>Elijah</option>
-      <option>Caitlyn</option>
-      <option>Ezra</option>
-    </select>
+    <h3>Your Name</h3>
+    <input type="text" id="customer" placeholder="Enter your name">
   </div>
 
   <div class="card">
@@ -154,6 +143,7 @@ footer {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -169,18 +159,26 @@ const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
 
 window.placeOrder = function () {
+  const name = document.getElementById("customer").value.trim();
+  if(!name){
+    alert("Please enter your name!");
+    return;
+  }
+
   push(ordersRef, {
-    customer: customer.value,
-    drink: drink.value,
-    milk: milk.value,
-    sweetener: sweetener.value,
+    customer: name,
+    drink: document.getElementById("drink").value,
+    milk: document.getElementById("milk").value,
+    sweetener: document.getElementById("sweetener").value,
     status: "Pending",
     time: new Date().toLocaleTimeString()
   });
 
   alert("Order sent to C&E's Cafe!");
+  document.getElementById("customer").value = ""; // reset input
 };
 </script>
 
 </body>
 </html>
+
