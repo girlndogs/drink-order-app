@@ -89,7 +89,9 @@ button {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
+import { getMessaging, getToken }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+  
 /* 🔥 FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
@@ -103,6 +105,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const messaging = getMessaging(app);
+
+Notification.requestPermission().then(permission => {
+  if (permission === "granted") {
+    getToken(messaging, {
+      vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio"
+    }).then(token => {
+      console.log("FCM TOKEN:", token);
+    });
+  }
+});
 const ordersRef = ref(db, "orders");
 
 const ordersDiv = document.getElementById("orders");
@@ -188,3 +201,4 @@ if ("serviceWorker" in navigator) {
 </script>
 </body>
 </html>
+
