@@ -1,3 +1,21 @@
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+    authDomain: "drink-order-test.firebaseapp.com",
+    databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "drink-order-test",
+    storageBucket: "drink-order-test.firebasestorage.app",
+    messagingSenderId: "90936648282",
+    appId: "1:90936648282:web:b9854c3438319db80cae63"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+</script>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,24 +107,23 @@
 
 </div>
 
-<script>
-function placeOrder() {
-  const drink = document.getElementById("drink").value;
-  const table = document.getElementById("table").value;
+<script type="module">
+  import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  const orders = JSON.parse(localStorage.getItem("orders")) || [];
+  const db = getDatabase();
+  const ordersRef = ref(db, "orders");
 
-  orders.push({
-    drink,
-    table,
-    status: "Pending",
-    time: new Date().toLocaleTimeString()
-  });
+  window.placeOrder = function () {
+    const drink = document.getElementById("drink").value;
+    const table = document.getElementById("table").value;
 
-  localStorage.setItem("orders", JSON.stringify(orders));
-  alert("Order submitted!");
-}
+    push(ordersRef, {
+      drink: drink,
+      table: table,
+      status: "Pending",
+      time: new Date().toLocaleTimeString()
+    });
+
+    alert("Order sent to waitstaff!");
+  };
 </script>
-
-</body>
-</html>

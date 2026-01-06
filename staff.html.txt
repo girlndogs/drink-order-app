@@ -1,0 +1,116 @@
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+    authDomain: "drink-order-test.firebaseapp.com",
+    databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "drink-order-test",
+    storageBucket: "drink-order-test.firebasestorage.app",
+    messagingSenderId: "90936648282",
+    appId: "1:90936648282:web:b9854c3438319db80cae63"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Dashboard</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #f4f6f8;
+  }
+
+  header {
+    background: #27ae60;
+    color: white;
+    padding: 16px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .container {
+    padding: 16px;
+  }
+
+  .order {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  .order.pending {
+    border-left: 6px solid #f39c12;
+  }
+
+  .order.fulfilled {
+    border-left: 6px solid #27ae60;
+    opacity: 0.6;
+  }
+
+  button {
+    margin-top: 8px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+
+<header>Waitstaff Orders</header>
+
+<div class="container" id="orderList"></div>
+
+<script type="module">
+  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const db = getDatabase();
+  const ordersRef = ref(db, "orders");
+  const orderList = document.getElementById("orderList");
+
+  onValue(ordersRef, (snapshot) => {
+    orderList.innerHTML = "";
+    const orders = snapshot.val();
+
+    for (let id in orders) {
+      const o = orders[id];
+
+      const div = document.createElement("div");
+      div.className = `order ${o.status.toLowerCase()}`;
+      div.innerHTML = `
+        <strong>Table ${o.table}</strong><br>
+        Drink: ${o.drink}<br>
+        Time: ${o.time}<br>
+        Status: ${o.status}
+      `;
+
+      if (o.status === "Pending") {
+        const btn = document.createElement("button");
+        btn.textContent = "Mark Fulfilled";
+        btn.onclick = () => {
+          update(ref(db, `orders/${id}`), { status: "Fulfilled" });
+        };
+        div.appendChild(btn);
+      }
+
+      orderList.appendChild(div);
+    }
+  });
+</script>
