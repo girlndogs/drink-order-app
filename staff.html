@@ -10,7 +10,6 @@ body {
   font-family: Arial, sans-serif;
   background:#eef4fc;
   margin:0;
-  padding:0;
 }
 
 header {
@@ -18,6 +17,10 @@ header {
   color:white;
   text-align:center;
   padding:15px;
+}
+
+header button {
+  margin:5px;
 }
 
 main {
@@ -34,10 +37,10 @@ main {
   position:relative;
 }
 
-/* STATUS COLOURS */
-.new-order { background:#ffe6e6; }          /* light red */
-.acknowledged { background:#fff3cd; }       /* yellow/orange */
-.fulfilled-order { background:#e6f4ea; }    /* green */
+/* ORDER STATES */
+.new-order { background:#ffe6e6; }        /* red */
+.acknowledged { background:#fff3cd; }     /* yellow */
+.fulfilled-order { background:#e6f4ea; }  /* green */
 
 .fulfilled-check {
   position:absolute;
@@ -48,8 +51,6 @@ main {
 }
 
 button {
-  margin-top:8px;
-  margin-right:6px;
   padding:6px 12px;
   background:#3f7fbf;
   color:white;
@@ -61,6 +62,14 @@ button {
 button:hover {
   background:#2e5f9e;
 }
+
+.clear-btn {
+  background:#c0392b;
+}
+
+.clear-btn:hover {
+  background:#a93226;
+}
 </style>
 </head>
 
@@ -69,6 +78,7 @@ button:hover {
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
   <button id="enableSound">Enable Notifications 🔔</button>
+  <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
 </header>
 
 <main>
@@ -84,7 +94,8 @@ import {
   ref,
   onChildAdded,
   onChildChanged,
-  update
+  update,
+  remove
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 /* Firebase config */
@@ -118,7 +129,7 @@ document.getElementById("enableSound").addEventListener("click", () => {
   });
 });
 
-/* Start repeating bell */
+/* Bell control */
 function startBell() {
   if (!soundEnabled || bellInterval) return;
   bellInterval = setInterval(() => {
@@ -127,20 +138,19 @@ function startBell() {
   }, 15000);
 }
 
-/* Stop bell */
 function stopBell() {
   clearInterval(bellInterval);
   bellInterval = null;
 }
 
-/* NEW ORDER */
+/* New order */
 onChildAdded(ordersRef, snapshot => {
   const order = snapshot.val();
   const key = snapshot.key;
 
   const orderDiv = document.createElement("div");
-  orderDiv.className = "order new-order";
   orderDiv.id = key;
+  orderDiv.className = "order new-order";
 
   orderDiv.innerHTML = `
     <strong>Customer:</strong> ${order.customerName}<br>
@@ -155,21 +165,18 @@ onChildAdded(ordersRef, snapshot => {
   `;
 
   ordersDiv.prepend(orderDiv);
-
   startBell();
 
-  /* Acknowledge */
-  orderDiv.querySelector(".ackBtn").addEventListener("click", () => {
+  orderDiv.querySelector(".ackBtn").onclick = () => {
     update(ref(db, `orders/${key}`), { acknowledged: true });
-  });
+  };
 
-  /* Fulfill */
-  orderDiv.querySelector(".fulfillBtn").addEventListener("click", () => {
+  orderDiv.querySelector(".fulfillBtn").onclick = () => {
     update(ref(db, `orders/${key}`), { fulfilled: true });
-  });
+  };
 });
 
-/* HANDLE STATUS UPDATES */
+/* Order state updates */
 onChildChanged(ordersRef, snapshot => {
   const order = snapshot.val();
   const key = snapshot.key;
@@ -191,10 +198,20 @@ onChildChanged(ordersRef, snapshot => {
     orderDiv.appendChild(check);
   }
 });
+
+/* Clear fulfilled orders only */
+document.getElementById("clearFulfilled").addEventListener("click", () => {
+  if (!confirm("Clear all fulfilled orders?")) return;
+
+  document.querySelectorAll(".fulfilled-order").forEach(div => {
+    remove(ref(db, `orders/${div.id}`));
+    div.remove();
+  });
+});
 </script>
 
 </body>
 </html>
 
-</html>
+
 
