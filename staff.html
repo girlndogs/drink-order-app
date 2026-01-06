@@ -1,153 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>C&E's Cafe Staff</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C&E's Cafe - Staff Orders</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #eef4fc; margin:0; padding:0; }
+  header { background: #3f7fbf; color: white; text-align:center; padding:15px; }
+  h1 { margin:0; }
+  #orders { margin:20px; }
+  .order { background:white; border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; }
+  #popup { display:none; position: fixed; top:20px; right:20px; background:#fffae6; border:2px solid #ffc107; padding:15px; border-radius:5px; z-index:1000; }
+  button { padding:10px 15px; font-size:16px; margin:10px 0; }
+</style>
+</head>
+<body>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onChildAdded, remove } 
-      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { getMessaging, getToken, onMessage } 
-      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+<header>
+  <h1>C&E's Cafe - Staff Orders</h1>
+</header>
 
-    // 🔹 Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
-      authDomain: "drink-order-test.firebaseapp.com",
-      databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "drink-order-test",
-      storageBucket: "drink-order-test.firebasestorage.app",
-      messagingSenderId: "90936648282",
-      appId: "1:90936648282:web:b9854c3438319db80cae63"
+<div id="orders"></div>
+<button id="clearOrders">Clear Order History</button>
+<div id="popup"></div>
+<audio id="bellSound" src="bell.mp3" preload="auto"></audio>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onChildAdded, set, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+
+// -------- Firebase config --------
+const firebaseConfig = {
+  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
+  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebasestorage.app",
+  messagingSenderId: "90936648282",
+  appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
 
-    // 🔹 Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const messaging = getMessaging(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const ordersRef = ref(db, "orders");
+const staffTokensRef = ref(db, "staffTokens");
 
-    // 🔹 Ask permission for notifications
-    Notification.requestPermission().then(permission => {
-      if (permission === "granted") {
-        getToken(messaging, { vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio" })
-          .then(async (token) => {
-            console.log("FCM TOKEN:", token);
+// -------- Messaging setup --------
+const messaging = getMessaging();
 
-            // 🔹 Subscribe device to "staff" topic via Firebase REST API
-            await fetch(
-              `https://iid.googleapis.com/iid/v1/${token}/rel/topics/staff`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: "key=684405ef0d259d5e2442e65919738262414eaf9f"
-                }
-              }
-            );
-            console.log("Subscribed to topic: staff");
-          });
-      }
-    });
+// On page load, get a token and save it in database
+getToken(messaging, { vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio" })
+  .then(token => {
+    console.log("Staff FCM token:", token);
+    // Save staff token in DB so Cloud Function can send notifications
+    set(ref(db, "staffTokens/" + token), true);
+  })
+  .catch(err => console.log("Error getting FCM token:", err));
 
-    // 🔹 Handle notifications while app is open
-    onMessage(messaging, payload => {
-      console.log("Foreground notification received:", payload);
+// Listen for messages while staff app is open
+onMessage(messaging, payload => {
+  console.log("Message received: ", payload);
+  showPopup(payload.notification.title + " - " + payload.notification.body);
+  document.getElementById("bellSound").play().catch(e => console.log("Audio blocked:", e));
+});
 
-      // Play bell sound
-      const audio = new Audio("bell.mp3");
-      audio.play().catch(err => console.log("Audio blocked:", err));
+// -------- Display orders --------
+const ordersDiv = document.getElementById("orders");
+const popup = document.getElementById("popup");
+const bell = document.getElementById("bellSound");
 
-      // Show popup
-      const popup = document.getElementById("popup");
-      popup.textContent = `${payload.notification.title} - ${payload.notification.body}`;
-      popup.style.display = "block";
-      setTimeout(() => { popup.style.display = "none"; }, 5000);
-    });
+onChildAdded(ordersRef, snapshot => {
+  const order = snapshot.val();
+  const div = document.createElement("div");
+  div.classList.add("order");
+  div.textContent = `${order.customerName} ordered ${order.drink} (${order.temperature})`;
+  ordersDiv.appendChild(div);
 
-    // 🔹 Database reference
-    const ordersRef = ref(db, "orders");
+  // Bell & popup
+  bell.play().catch(err => console.log("Audio blocked:", err));
+  showPopup(`${order.customerName} ordered ${order.drink} (${order.temperature})`);
+});
 
-    // Display incoming orders in staff page
-    const ordersDiv = document.getElementById("orders");
-    onChildAdded(ordersRef, (snapshot) => {
-      const order = snapshot.val();
-      const orderEl = document.createElement("div");
-      orderEl.textContent = `${order.customerName} ordered ${order.drink} (${order.temperature})`;
-      ordersDiv.prepend(orderEl);
-    });
+// -------- Popup function --------
+function showPopup(msg){
+  popup.textContent = msg;
+  popup.style.display = "block";
+  setTimeout(()=>{ popup.style.display = "none"; }, 5000);
+}
 
-    // 🔹 Clear orders
-    function clearOrders() {
-      if (confirm("Are you sure you want to clear the order history?")) {
-        remove(ordersRef);
-        ordersDiv.innerHTML = "";
-      }
-    }
-  </script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #eef3fb;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: url('https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg') no-repeat center/cover;
-      height: 150px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 2em;
-      font-weight: bold;
-      text-shadow: 1px 1px 3px #000;
-    }
-    main {
-      padding: 20px;
-    }
-    #orders div {
-      padding: 10px;
-      margin: 5px 0;
-      background-color: #cce5ff;
-      border-radius: 5px;
-    }
-    #popup {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: #ffeb3b;
-      padding: 15px;
-      border-radius: 5px;
-      box-shadow: 0 0 5px #333;
-      display: none;
-      z-index: 1000;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1em;
-      margin-top: 10px;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-  </style>
-</head>
-
-<body>
-  <header>C&E's Cafe Staff</header>
-  <main>
-    <div id="popup"></div>
-    <h2>Incoming Orders</h2>
-    <div id="orders"></div>
-    <button onclick="clearOrders()">Clear Order History</button>
-  </main>
+// -------- Clear orders --------
+document.getElementById("clearOrders").addEventListener("click", ()=>{
+  if(confirm("Are you sure you want to clear all orders?")){
+    remove(ordersRef)
+      .then(()=>{ ordersDiv.innerHTML=""; alert("Order history cleared!"); })
+      .catch(err=>console.log(err));
+  }
+});
+</script>
 </body>
 </html>
