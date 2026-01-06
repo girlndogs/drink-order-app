@@ -3,164 +3,99 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C&E's Cafe – Order</title>
-
+<title>C&E's Cafe - Place Your Order</title>
 <style>
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f4f6f8;
-}
-
-header {
-  background: #6f4e37;
-  color: white;
-  padding: 16px;
-  text-align: center;
-}
-
-header img {
-  width: 80px;
-  border-radius: 10px;
-  margin-bottom: 8px;
-}
-
-.hero {
-  width: 100%;
-  height: 180px;
-  background-image: url("https://cdn.pixabay.com/photo/2017/05/07/08/56/coffee-2290713_1280.jpg");
-  background-size: cover;
-  background-position: center;
-}
-
-.container {
-  padding: 16px;
-}
-
-.card {
-  background: white;
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-input, select, button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  font-size: 16px;
-}
-
-button {
-  background: #6f4e37;
-  color: white;
-  font-weight: bold;
-  border: none;
-  margin-top: 10px;
-}
-
-footer {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 14px;
-  color: #555;
-}
+  body { font-family: Arial, sans-serif; background: #eef4fc; margin:0; padding:0; }
+  header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
+  h1 { margin:0; }
+  main { padding:20px; max-width:500px; margin:auto; }
+  form label { display:block; margin:10px 0 5px; }
+  select, input { width:100%; padding:8px; margin-bottom:10px; }
+  button { padding:10px 15px; background:#3f7fbf; color:white; border:none; cursor:pointer; font-size:16px; }
+  button:hover { background:#2e5f9e; }
+  footer { text-align:center; padding:15px; background:#f2f2f2; color:#333; margin-top:20px; font-style:italic; }
 </style>
 </head>
-
 <body>
 
 <header>
-  <img src="https://cdn.pixabay.com/photo/2017/05/07/08/56/coffee-2290713_1280.jpg" alt="Cafe Logo">
-  <h2>C&E's Cafe</h2>
+  <h1>C&E's Cafe - Place Your Order</h1>
 </header>
 
-<div class="hero"></div>
+<main>
+  <form id="orderForm">
+    <label for="customerName">Your Name:</label>
+    <input type="text" id="customerName" required placeholder="Enter your name">
 
-<div class="container">
-
-  <div class="card">
-    <h3>Your Name</h3>
-    <input type="text" id="customer" placeholder="Enter your name">
-  </div>
-
-  <div class="card">
-    <h3>Select Drink</h3>
-    <select id="drink">
-      <option value="milo & chai">🥛🍫 milo & chai</option>
-      <option value="C's special">✨ C's special</option>
-      <option value="E's special">🌟 E's special</option>
-      <option value="megacandy">🍬 megacandy</option>
-      <option value="matcha & milo">🍵🥛 matcha & milo</option>
-      <option value="black tea">🫖 black tea</option>
-      <option value="green tea">🍃 green tea</option>
-      <option value="lemonginger">🍋🫚 lemonginger</option>
-      <option value="peaceful pause">☁️ peaceful pause</option>
-      <option value="coffee">☕ coffee</option>
-      <option value="blackcurrant">🫐 blackcurrant</option>
-      <option value="apple cider">🍎 apple cider</option>
-      <option value="raspberry shrub">🍓 raspberry shrub</option>
-      <option value="soda water">💧 soda water</option>
-      <option value="matcha strawberry">🍵🍓 matcha strawberry</option>
-      <option value="matcha plain">🍵 matcha plain</option>
-      <option value="milo pro">🥛🍫 milo pro</option>
-      <option value="milo plain">🥛 milo plain</option>
-      <option value="Vanilla Chai">🌿 Vanilla Chai</option>
-      <option value="Spice Chai">🌶️ Spice Chai</option>
+    <label for="drink">Select Drink:</label>
+    <select id="drink" required>
+      <option value="">Please select</option>
+      <option>Milo</option>
+      <option>Black Tea</option>
+      <option>Matcha</option>
+      <option>C's Special</option>
+      <option>E's Special</option>
+      <option>Megacandy</option>
+      <option>Green Tea</option>
+      <option>Lemonginger</option>
+      <option>Peaceful Pause</option>
+      <option>Coffee</option>
+      <option>Blackcurrant</option>
+      <option>Apple Cider</option>
+      <option>Raspberry Shrub</option>
+      <option>Soda Water</option>
+      <option>Matcha Strawberry</option>
+      <option>Matcha Plain</option>
+      <option>Milo Pro</option>
+      <option>Milo Plain</option>
+      <option>Vanilla Chai</option>
+      <option>Spice Chai</option>
     </select>
-  </div>
 
-  <div class="card">
-    <h3>Drink Temperature</h3>
-    <select id="temperature">
+    <label for="temperature">Temperature:</label>
+    <select id="temperature" required>
+      <option value="">Please select</option>
       <option>Piping Hot!</option>
       <option>Hot</option>
       <option>Warm</option>
       <option>Cool</option>
       <option>Cold As</option>
     </select>
-  </div>
 
-  <div class="card">
-    <h3>Milk</h3>
+    <label for="milk">Milk:</label>
     <select id="milk">
-      <option>None</option>
-      <option>Regular Milk</option>
-      <option>Oat Milk</option>
-      <option>Almond Milk</option>
+      <option value="">None</option>
+      <option>Full Cream</option>
+      <option>Oat</option>
+      <option>Almond</option>
     </select>
-  </div>
 
-  <div class="card">
-    <h3>Sweetener</h3>
+    <label for="sweetener">Sweetener:</label>
     <select id="sweetener">
-      <option>None</option>
+      <option value="">None</option>
       <option>Sugar</option>
       <option>Honey</option>
     </select>
-  </div>
 
-  <button onclick="placeOrder()">Place Order</button>
+    <button type="submit">Place Order</button>
+  </form>
+</main>
 
-  <footer>
-    We highly appreciate recommendations to make your next visit more relaxing and pleasant
-  </footer>
-
-</div>
+<footer>
+  We highly appreciate recommendations to make your next visit more relaxing and pleasant
+</footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase config
+// -------- Firebase config ----------
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "drink-order-test",
-  storageBucket: "drink-order-test.firebasestorage.app",
+  storageBucket: "drink-order-test.firebasedestorage.app",
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
@@ -169,26 +104,30 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
 
-window.placeOrder = function () {
-  const name = document.getElementById("customer").value.trim();
-  if(!name){
-    alert("Please enter your name!");
-    return;
-  }
+// -------- Handle order submission ----------
+document.getElementById("orderForm").addEventListener("submit", e => {
+  e.preventDefault();
 
-  push(ordersRef, {
-    customer: name,
+  const order = {
+    customerName: document.getElementById("customerName").value.trim(),
     drink: document.getElementById("drink").value,
     temperature: document.getElementById("temperature").value,
-    milk: document.getElementById("milk").value,
-    sweetener: document.getElementById("sweetener").value,
-    status: "Pending",
-    time: new Date().toLocaleTimeString()
-  });
+    milk: document.getElementById("milk").value || "None",
+    sweetener: document.getElementById("sweetener").value || "None",
+    timestamp: new Date().toLocaleString(),
+    fulfilled: false
+  };
 
-  alert("Order sent to C&E's Cafe!");
-  document.getElementById("customer").value = ""; // reset input
-};
+  push(ordersRef, order)
+    .then(() => {
+      alert("Order placed!");
+      e.target.reset(); // Reset form for next customer
+    })
+    .catch(err => console.log(err));
+});
 </script>
 
 </body>
+</html>
+
+
