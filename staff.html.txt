@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C&E's Cafe – Staff</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f4f6f8;
+}
+
+header {
+  background: #2c3e50;
+  color: white;
+  padding: 16px;
+  text-align: center;
+}
+
+.container {
+  padding: 16px;
+}
+
+.order {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-left: 6px solid orange;
+}
+
+.order.fulfilled {
+  border-left-color: green;
+  opacity: 0.6;
+}
+
+button {
+  margin-top: 10px;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  border: none;
+  background: green;
+  color: white;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>C&E's Cafe – Orders</h2>
+</header>
+
+<div class="container" id="orderList"></div>
+
+<audio id="meowSound" preload="auto">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6c7c8f07c2.mp3?filename=cat-meow-14536.mp3" type="audio/mpeg">
+</audio>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
+  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebasestorage.app",
+  messagingSenderId: "90936648282",
+  appId: "1:90936648282:web:b9854c3438319db80cae63"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const ordersRef = ref(db, "orders");
+const list = document.getElementById("orderList");
+const meow = document.getElementById("meowSound");
+
+let previousCount = 0;
+
+onValue(ordersRef, (snapshot) => {
+  list.innerHTML = "";
+  const orders = snapshot.val();
+  const count = orders ? Object.keys(orders).length : 0;
+
+  // Play cat meow if a new order arrives
+  if (count > previousCount) {
+    meow.play();
+  }
+  previousCount = count;
+
+  for (let id in orders) {
+    const o = orders[id];
+    const div = document.createElement("div");
+    div.className = `order ${o.status.toLowerCase()}`;
+
+    div.innerHTML = `
+      <strong>${o.customer}</strong><br>
+      Drink: ${o.drink}<br>
+      Milk: ${o.milk}<br>
+      Sweetener: ${o.sweetener}<br>
+      Time: ${o.time}<br>
+      Status: ${o.status}
+    `;
+
+    if (o.status === "Pending") {
+      const btn = document.createElement("button");
+      btn.textContent = "Mark Fulfilled";
+      btn.onclick = () => {
+        update(ref(db, "orders/" + id), { status: "Fulfilled" });
+      };
+      div.appendChild(btn);
+    }
+
+    list.appendChild(div);
+  }
+});
+</script>
+
+</body>
+</html>
+
