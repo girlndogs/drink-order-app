@@ -28,7 +28,7 @@ header img {
 .hero {
   width: 100%;
   height: 180px;
-  background-image: url("https://cdn.pixabay.com/photo/2016/11/18/17/23/coffee-1839004_1280.jpg"); /* Original cafe drinks image */
+  background-image: url("https://cdn.pixabay.com/photo/2016/11/18/17/23/coffee-1839004_1280.jpg"); /* Cafe image */
   background-size: cover;
   background-position: center;
 }
@@ -113,6 +113,17 @@ footer {
   </div>
 
   <div class="card">
+    <h3>Drink Temperature</h3>
+    <select id="temperature">
+      <option>Piping Hot!</option>
+      <option>Hot</option>
+      <option>Warm</option>
+      <option>Cool</option>
+      <option>Cold As</option>
+    </select>
+  </div>
+
+  <div class="card">
     <h3>Milk</h3>
     <select id="milk">
       <option>None</option>
@@ -153,7 +164,6 @@ const firebaseConfig = {
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
@@ -168,6 +178,7 @@ window.placeOrder = function () {
   push(ordersRef, {
     customer: name,
     drink: document.getElementById("drink").value,
+    temperature: document.getElementById("temperature").value,
     milk: document.getElementById("milk").value,
     sweetener: document.getElementById("sweetener").value,
     status: "Pending",
@@ -181,4 +192,3 @@ window.placeOrder = function () {
 
 </body>
 </html>
-
