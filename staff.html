@@ -6,78 +6,105 @@
 <title>C&E's Cafe - Staff Orders</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background:#eef4fc;
-  margin:0;
-}
+  body {
+    font-family: Arial, sans-serif;
+    background:#eef4fc;
+    margin:0;
+  }
 
-header {
-  background:#3f7fbf;
-  color:white;
-  text-align:center;
-  padding:15px;
-}
+  header {
+    background:#3f7fbf;
+    color:white;
+    text-align:center;
+    padding:15px;
+  }
 
-header button {
-  margin:5px;
-}
+  header button {
+    margin:5px;
+  }
 
-main {
-  padding:20px;
-  max-width:800px;
-  margin:auto;
-}
+  main {
+    padding:20px;
+    max-width:800px;
+    margin:auto;
+  }
 
-.order {
-  border:1px solid #ccc;
-  padding:12px;
-  margin-bottom:12px;
-  border-radius:6px;
-  position:relative;
-}
+  .order {
+    border:1px solid #ccc;
+    padding:12px;
+    margin-bottom:12px;
+    border-radius:6px;
+    position:relative;
+  }
 
-/* ORDER STATES */
-.new-order { background:#ffe6e6; }        /* light red */
-.acknowledged { background:#fff3cd; }     /* yellow */
-.fulfilled-order { background:#e6f4ea; }  /* green */
+  /* ORDER STATES */
+  .new-order { background:#ffe6e6; }        /* red */
+  .acknowledged { background:#fff3cd; }     /* yellow */
+  .fulfilled-order { background:#e6f4ea; }  /* green */
 
-.fulfilled-check {
-  position:absolute;
-  top:10px;
-  right:10px;
-  font-size:22px;
-  color:green;
-}
+  .fulfilled-check {
+    position:absolute;
+    top:10px;
+    right:10px;
+    font-size:22px;
+    color:green;
+  }
 
-/* BUTTONS */
-button {
-  padding:6px 12px;
-  background:#3f7fbf;
-  color:white;
-  border:none;
-  cursor:pointer;
-  border-radius:4px;
-}
+  button {
+    padding:6px 12px;
+    background:#3f7fbf;
+    color:white;
+    border:none;
+    cursor:pointer;
+    border-radius:4px;
+  }
 
-button:hover {
-  background:#2e5f9e;
-}
+  button:hover {
+    background:#2e5f9e;
+  }
 
-.clear-btn {
-  background:#c0392b;
-}
+  .clear-btn {
+    background:#c0392b;
+  }
 
-.clear-btn:hover {
-  background:#a93226;
-}
+  .clear-btn:hover {
+    background:#a93226;
+  }
 
-/* Button row inside order */
-.button-row {
-  display:flex;
-  justify-content:space-between;
-  margin-top:10px;
-}
+  /* NEW ORDER OVERLAY */
+  #newOrderBanner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #c0392b;
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    padding: 16px;
+    z-index: 9999;
+    display: none;
+    animation: pulse 1.2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { background:#c0392b; }
+    50% { background:#e74c3c; }
+    100% { background:#c0392b; }
+  }
+
+  /* Flash effect on new orders */
+  .flash {
+    animation: flashBg 1s ease-in-out 3;
+  }
+
+  @keyframes flashBg {
+    0% { background:#ffe6e6; }
+    50% { background:#ffb3b3; }
+    100% { background:#ffe6e6; }
+  }
+
 </style>
 </head>
 
@@ -87,7 +114,6 @@ button:hover {
   <h1>C&E's Cafe - Staff Orders</h1>
   <button id="enableSound">Enable Notifications 🔔</button>
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
-  <button id="clearAll" class="clear-btn">🚨 Clear ALL Orders</button>
 </header>
 
 <main>
@@ -95,6 +121,9 @@ button:hover {
 </main>
 
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
+
+<!-- NEW ORDER BANNER -->
+<div id="newOrderBanner">🔔 NEW ORDER RECEIVED</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -104,8 +133,7 @@ import {
   onChildAdded,
   onChildChanged,
   update,
-  remove,
-  get
+  remove
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 /* Firebase config */
@@ -128,8 +156,9 @@ const bell = document.getElementById("bellSound");
 
 let soundEnabled = false;
 let bellInterval = null;
+const banner = document.getElementById("newOrderBanner");
 
-/* Enable sound */
+/* Enable sound (required once) */
 document.getElementById("enableSound").addEventListener("click", () => {
   bell.play().then(() => {
     bell.pause();
@@ -139,7 +168,7 @@ document.getElementById("enableSound").addEventListener("click", () => {
   });
 });
 
-/* Bell logic */
+/* Bell control */
 function startBell() {
   if (!soundEnabled || bellInterval) return;
   bellInterval = setInterval(() => {
@@ -153,7 +182,24 @@ function stopBell() {
   bellInterval = null;
 }
 
-/* New orders */
+/* Show NEW ORDER banner */
+function showBanner() {
+  banner.style.display = "block";
+}
+
+/* Hide NEW ORDER banner */
+function hideBanner() {
+  banner.style.display = "none";
+}
+
+/* Vibration (Android supported) */
+function vibrateAlert() {
+  if (navigator.vibrate) {
+    navigator.vibrate([300, 200, 300, 200, 500]);
+  }
+}
+
+/* New order */
 onChildAdded(ordersRef, snapshot => {
   const order = snapshot.val();
   const key = snapshot.key;
@@ -170,17 +216,19 @@ onChildAdded(ordersRef, snapshot => {
     <strong>Sweetener:</strong> ${order.sweetener}<br>
     <strong>Time:</strong> ${order.timestamp}<br>
 
-    <div class="button-row">
-      <button class="ackBtn">I’ll make that now! ☕</button>
-      <button class="fulfillBtn">Delivered to customer! ✅</button>
-    </div>
+    <button class="ackBtn">I'll make that now! 🛠️</button>
+    <button class="fulfillBtn">Delivered to customer ✅</button>
   `;
 
   ordersDiv.prepend(orderDiv);
   startBell();
+  showBanner();
+  vibrateAlert();
+  orderDiv.classList.add("flash");
 
   orderDiv.querySelector(".ackBtn").onclick = () => {
     update(ref(db, `orders/${key}`), { acknowledged: true });
+    hideBanner();
   };
 
   orderDiv.querySelector(".fulfillBtn").onclick = () => {
@@ -188,7 +236,7 @@ onChildAdded(ordersRef, snapshot => {
   };
 });
 
-/* State changes */
+/* Order state updates */
 onChildChanged(ordersRef, snapshot => {
   const order = snapshot.val();
   const key = snapshot.key;
@@ -202,7 +250,7 @@ onChildChanged(ordersRef, snapshot => {
 
   if (order.fulfilled) {
     orderDiv.className = "order fulfilled-order";
-    orderDiv.querySelector(".button-row")?.remove();
+    orderDiv.querySelectorAll("button").forEach(b => b.remove());
 
     const check = document.createElement("span");
     check.className = "fulfilled-check";
@@ -211,7 +259,7 @@ onChildChanged(ordersRef, snapshot => {
   }
 });
 
-/* Clear fulfilled only */
+/* Clear fulfilled orders only */
 document.getElementById("clearFulfilled").addEventListener("click", () => {
   if (!confirm("Clear all fulfilled orders?")) return;
 
@@ -221,21 +269,14 @@ document.getElementById("clearFulfilled").addEventListener("click", () => {
   });
 });
 
-/* 🚨 Clear ALL orders */
-document.getElementById("clearAll").addEventListener("click", async () => {
-  const confirmText = prompt(
-    "⚠️ WARNING ⚠️\nThis will DELETE ALL ORDERS.\nType DELETE ALL to confirm:"
-  );
+/* Clear ALL orders */
+document.getElementById("clearAllOrders").addEventListener("click", () => {
+  if (!confirm("WARNING: This will DELETE ALL ORDERS in the system. Proceed?")) return;
 
-  if (confirmText !== "DELETE ALL") return;
-
-  const snapshot = await get(ordersRef);
-  snapshot.forEach(child => {
-    remove(ref(db, `orders/${child.key}`));
+  document.querySelectorAll(".order").forEach(div => {
+    remove(ref(db, `orders/${div.id}`));
+    div.remove();
   });
-
-  ordersDiv.innerHTML = "";
-  stopBell();
 });
 </script>
 
