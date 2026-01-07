@@ -20,9 +20,9 @@ main { padding:20px; max-width:800px; margin:auto; }
 }
 
 /* ORDER STATES */
-.new-order { background:#ffe6e6; }        /* red */
-.acknowledged { background:#fff3cd; }     /* yellow */
-.fulfilled-order { background:#e6f4ea; }  /* green */
+.new-order { background:#ffe6e6; }
+.acknowledged { background:#fff3cd; }
+.fulfilled-order { background:#e6f4ea; }
 
 .fulfilled-check {
   position:absolute;
@@ -51,7 +51,6 @@ button:hover { background:#2e5f9e; }
   background:#a93226;
 }
 
-/* Delivered button bottom-right */
 .deliver-btn {
   position:absolute;
   bottom:10px;
@@ -113,8 +112,9 @@ const bell = document.getElementById("bellSound");
 
 let soundEnabled = false;
 let bellInterval = null;
+const spokenOrders = new Set(); // prevent repeat speech
 
-/* Enable sound (required by browser) */
+/* Enable sound */
 document.getElementById("enableSound").addEventListener("click", () => {
   bell.play().then(() => {
     bell.pause();
@@ -124,15 +124,15 @@ document.getElementById("enableSound").addEventListener("click", () => {
   });
 });
 
-/* 🔔 IMMEDIATE + REPEATING BELL */
+/* 🔔 Bell logic */
 function startBell() {
   if (!soundEnabled || bellInterval) return;
 
-  // 🔊 PLAY IMMEDIATELY
+  // Immediate bell
   bell.currentTime = 0;
   bell.play().catch(()=>{});
 
-  // 🔁 THEN EVERY 15 SECONDS
+  // Repeat every 15s
   bellInterval = setInterval(() => {
     bell.currentTime = 0;
     bell.play().catch(()=>{});
@@ -144,7 +144,22 @@ function stopBell() {
   bellInterval = null;
 }
 
-/* Add order to UI */
+/* 🗣️ Spoken alert */
+function speakNewOrder(name) {
+  if (!soundEnabled || !window.speechSynthesis) return;
+
+  const msg = new SpeechSynthesisUtterance(
+    `Hey! New order for ${name} has arrived!`
+  );
+
+  msg.rate = 1;
+  msg.pitch = 1;
+  msg.volume = 1;
+
+  window.speechSynthesis.speak(msg);
+}
+
+/* Add order */
 function addOrder(order, key) {
   const orderDiv = document.createElement("div");
   orderDiv.id = key;
@@ -163,7 +178,14 @@ function addOrder(order, key) {
   `;
 
   ordersDiv.prepend(orderDiv);
+
   startBell();
+
+  // Speak ONCE per order
+  if (!spokenOrders.has(key)) {
+    spokenOrders.add(key);
+    setTimeout(() => speakNewOrder(order.customerName), 800);
+  }
 
   orderDiv.querySelector(".ackBtn").onclick = () => {
     update(ref(db, `orders/${key}`), { acknowledged: true });
@@ -175,29 +197,28 @@ function addOrder(order, key) {
 }
 
 /* New orders */
-onChildAdded(ordersRef, snapshot => {
-  addOrder(snapshot.val(), snapshot.key);
+onChildAdded(ordersRef, snap => {
+  addOrder(snap.val(), snap.key);
 });
 
-/* Order updates */
-onChildChanged(ordersRef, snapshot => {
-  const order = snapshot.val();
-  const orderDiv = document.getElementById(snapshot.key);
-  if (!orderDiv) return;
+/* Updates */
+onChildChanged(ordersRef, snap => {
+  const order = snap.val();
+  const div = document.getElementById(snap.key);
+  if (!div) return;
 
   if (order.acknowledged && !order.fulfilled) {
-    orderDiv.className = "order acknowledged";
+    div.className = "order acknowledged";
     stopBell();
   }
 
   if (order.fulfilled) {
-    orderDiv.className = "order fulfilled-order";
-    orderDiv.querySelectorAll("button").forEach(b => b.remove());
-
+    div.className = "order fulfilled-order";
+    div.querySelectorAll("button").forEach(b => b.remove());
     const check = document.createElement("span");
     check.className = "fulfilled-check";
     check.textContent = "✅";
-    orderDiv.appendChild(check);
+    div.appendChild(check);
   }
 });
 
@@ -219,12 +240,12 @@ document.getElementById("clearAll").addEventListener("click", () => {
   });
 });
 
-/* Firebase Push (PWA support) */
+/* PWA Push */
 Notification.requestPermission().then(permission => {
   if (permission === "granted") {
     getToken(messaging, {
       vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio"
-    }).then(token => console.log("FCM token:", token));
+    });
   }
 });
 
@@ -239,5 +260,4 @@ onMessage(messaging, payload => {
 </body>
 </html>
 
-</html>
 
