@@ -136,7 +136,7 @@ function startBell() {
   bellInterval = setInterval(() => {
     bell.currentTime = 0;
     bell.play().catch(()=>{});
-  }, 15000);
+  }, 30000);
 }
 
 function stopBell() {
@@ -259,5 +259,6 @@ onMessage(messaging, payload => {
 
 </body>
 </html>
+
 
 
