@@ -56,12 +56,12 @@ h3 {
 }
 
 input, select, button {
-  width: 100%;               /* Ensures they take the full width of their parent container */
+  width: 100%;
   padding: 12px;
   border-radius: 10px;
   border: 1px solid #aac4e0;
   font-size: 16px;
-  box-sizing: border-box;     /* Ensures padding is included in the width */
+  box-sizing: border-box;
 }
 
 select option[disabled] {
@@ -106,7 +106,12 @@ footer {
 
   <div class="card">
     <h3>Your Name</h3>
-    <input type="text" id="customerName" placeholder="Please enter your name">
+    <input
+      type="text"
+      id="customerName"
+      placeholder="Please enter your name (max 50 characters)"
+      maxlength="50"
+    >
   </div>
 
   <div class="card">
@@ -199,13 +204,23 @@ const ordersRef = ref(db, "orders");
 const fields = ["customerName","drink","temperature","milk","sweetener"];
 const submitBtn = document.getElementById("submitOrder");
 
+/* 🔒 Enforce 50 character limit (paste-safe) */
+const nameInput = document.getElementById("customerName");
+const NAME_LIMIT = 50;
+
+nameInput.addEventListener("input", () => {
+  if (nameInput.value.length > NAME_LIMIT) {
+    nameInput.value = nameInput.value.slice(0, NAME_LIMIT);
+  }
+  validateForm();
+});
+
 function validateForm() {
   const valid = fields.every(id => document.getElementById(id).value);
   submitBtn.disabled = !valid;
 }
 
 fields.forEach(id => {
-  document.getElementById(id).addEventListener("input", validateForm);
   document.getElementById(id).addEventListener("change", validateForm);
 });
 
@@ -230,5 +245,7 @@ submitBtn.addEventListener("click", () => {
 
 </body>
 </html>
+
+
 
 
