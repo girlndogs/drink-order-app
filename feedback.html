@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Café Feedback</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f6f6f6;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 40px auto;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      text-align: center;
+    }
+
+    p.subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .rating {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .rating input {
+      display: none;
+    }
+
+    .rating label {
+      font-size: 1.8rem;
+      cursor: pointer;
+      color: #ccc;
+    }
+
+    .rating input:checked ~ label,
+    .rating label:hover,
+    .rating label:hover ~ label {
+      color: #f5b301;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px;
+      font-size: 1.1rem;
+      background: #2c7a7b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #246a6b;
+    }
+
+    footer {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      text-align: center;
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>We’d Love Your Feedback ☕</h1>
+    <p class="subtitle">Help us make your next visit even better</p>
+
+    <form id="feedbackForm">
+      <label for="name">Your Name (optional)</label>
+      <input type="text" id="name" name="name" />
+
+      <label for="email">Email (optional)</label>
+      <input type="email" id="email" name="email" />
+
+      <label>How was your experience?</label>
+      <div class="rating">
+        <input type="radio" id="star5" name="rating" value="5" required />
+        <label for="star5">★</label>
+
+        <input type="radio" id="star4" name="rating" value="4" />
+        <label for="star4">★</label>
+
+        <input type="radio" id="star3" name="rating" value="3" />
+        <label for="star3">★</label>
+
+        <input type="radio" id="star2" name="rating" value="2" />
+        <label for="star2">★</label>
+
+        <input type="radio" id="star1" name="rating" value="1" />
+        <label for="star1">★</label>
+      </div>
+
+      <label for="visitType">Visit Type</label>
+      <select id="visitType" name="visitType" required>
+        <option value="">Select one</option>
+        <option value="dine-in">Dine In</option>
+        <option value="takeaway">Takeaway</option>
+      </select>
+
+      <label for="order">What did you order?</label>
+      <input type="text" id="order" name="order" />
+
+      <label for="comments">Your Feedback</label>
+      <textarea id="comments" name="comments" required></textarea>
+
+      <button type="submit">Submit Feedback</button>
+    </form>
+
+    <footer>
+      Thank you for supporting our café ❤️
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById("feedbackForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      alert("Thank you for your feedback!");
+
+      this.reset();
+    });
+  </script>
+</body>
+</html>
