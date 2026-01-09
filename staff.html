@@ -78,17 +78,23 @@ let bellInterval = null;
 const spokenOrders = new Set(); // prevent repeat speech
 const blockedIPs = new Set();
 
-/* Enable sound */
-document.getElementById("enableSound").addEventListener("click", () => {
-  bell.play().then(() => { bell.pause(); bell.currentTime=0; soundEnabled=true; alert("Notifications enabled!"); }).catch(()=>{});
+/* Enable sound and speech after user click */
+document.getElementById("enableSound").addEventListener("click", async () => {
+  try {
+    await bell.play(); 
+    bell.pause(); 
+    bell.currentTime=0; 
+    soundEnabled=true; 
+    alert("Notifications enabled!");
+  } catch(e){ console.log("User interaction required for audio:", e);}
 });
 
 /* Feedback button navigation */
 document.getElementById("viewFeedback").addEventListener("click", () => {
-  window.location.href = "feedback.html"; // link to feedback viewer page
+  window.location.href = "feedback.html";
 });
 
-/* 🔔 Bell logic */
+/* Bell logic */
 function startBell() {
   if(!soundEnabled || bellInterval) return;
   bell.currentTime=0; bell.play().catch(()=>{});
@@ -96,15 +102,15 @@ function startBell() {
 }
 function stopBell() { clearInterval(bellInterval); bellInterval=null; }
 
-/* 🗣️ Spoken alert */
+/* Speak order once */
 function speakNewOrder(name) {
   if(!soundEnabled || !window.speechSynthesis) return;
-  const msg = new SpeechSynthesisUtterance(`Hey! New order for ${name} has arrived!`);
+  const msg = new SpeechSynthesisUtterance(`New order for ${name} has arrived!`);
   msg.rate=1; msg.pitch=1; msg.volume=1;
   window.speechSynthesis.speak(msg);
 }
 
-/* Add order */
+/* Add order element */
 function addOrder(order,key){
   const orderDiv = document.createElement("div");
   orderDiv.id = key;
@@ -122,22 +128,26 @@ function addOrder(order,key){
     <button class="fulfillBtn deliver-btn">Delivered ✅</button>
   `;
   ordersDiv.prepend(orderDiv);
-  if(!spokenOrders.has(key)){ spokenOrders.add(key); setTimeout(()=>speakNewOrder(order.customerName),800); }
+
+  if(!spokenOrders.has(key)) { 
+    spokenOrders.add(key); 
+    setTimeout(()=>speakNewOrder(order.customerName), 500); 
+  }
   startBell();
 
-  orderDiv.querySelector(".ackBtn").onclick = () => { update(ref(db, `orders/${key}`), { acknowledged:true }); };
-  orderDiv.querySelector(".fulfillBtn").onclick = () => { update(ref(db, `orders/${key}`), { fulfilled:true }); };
+  orderDiv.querySelector(".ackBtn").onclick = () => update(ref(db, `orders/${key}`), { acknowledged:true });
+  orderDiv.querySelector(".fulfillBtn").onclick = () => update(ref(db, `orders/${key}`), { fulfilled:true, fulfilledTime: new Date().toISOString() });
   orderDiv.querySelector(".blockIPBtn").onclick = () => {
-    if(confirm(`Block IP ${order.ip}?`)){
+    if(order.ip && confirm(`Block IP ${order.ip}?`)){
       blockedIPs.add(order.ip);
-      alert(`${order.ip} blocked.`);
+      alert(`${order.ip} blocked`);
       orderDiv.style.opacity = "0.5";
     }
   };
 }
 
-/* Update order display */
-onChildAdded(ordersRef,snap=>{ addOrder(snap.val(),snap.key); updateStats(); });
+/* Firebase listeners */
+onChildAdded(ordersRef,snap=>addOrder(snap.val(),snap.key));
 onChildChanged(ordersRef,snap=>{
   const order=snap.val();
   const div=document.getElementById(snap.key);
@@ -148,26 +158,24 @@ onChildChanged(ordersRef,snap=>{
     div.querySelectorAll("button").forEach(b=>b.remove());
     const check=document.createElement("span");
     check.className="fulfilled-check"; check.textContent="✅"; div.appendChild(check);
-    updateStats();
   }
+  updateStats();
 });
 
-/* Clear fulfilled */
+/* Clear fulfilled orders */
 document.getElementById("clearFulfilled").addEventListener("click",()=>{
   if(!confirm("Clear all fulfilled orders?")) return;
   document.querySelectorAll(".fulfilled-order").forEach(div=>{
-    remove(ref(db,`orders/${div.id}`));
-    div.remove();
+    remove(ref(db,`orders/${div.id}`)); div.remove();
   });
   updateStats();
 });
 
-/* Clear all */
+/* Clear all orders */
 document.getElementById("clearAll").addEventListener("click",()=>{
   if(!confirm("⚠️ THIS WILL DELETE ALL ORDERS! Are you sure?")) return;
   document.querySelectorAll(".order").forEach(div=>{
-    remove(ref(db,`orders/${div.id}`));
-    div.remove();
+    remove(ref(db,`orders/${div.id}`)); div.remove();
   });
   updateStats();
 });
@@ -177,37 +185,22 @@ async function updateStats(){
   const q = query(ordersRef, orderByChild("fulfilled"));
   const snap = await get(q);
   const orders = [];
-  snap.forEach(s=>{
-    const o=s.val();
-    o.key=s.key; orders.push(o);
-  });
+  snap.forEach(s=>{ const o=s.val(); o.key=s.key; orders.push(o); });
+
   const now = new Date();
-  const last24h = orders.filter(o=>{
-    const t=new Date(o.timestamp);
-    return o.fulfilled && (now-t)<=24*60*60*1000;
-  });
+  const last24h = orders.filter(o=>o.fulfilled && (new Date(o.timestamp) >= new Date(now - 24*60*60*1000)));
   drinksMadeEl.textContent = last24h.length;
 
-  // Average time
   const times = last24h.map(o=>{
-    const t1=new Date(o.timestamp);
-    const t2=o.fulfilledTime ? new Date(o.fulfilledTime) : t1;
+    const t1 = new Date(o.timestamp);
+    const t2 = o.fulfilledTime ? new Date(o.fulfilledTime) : t1;
     return (t2-t1)/1000; // seconds
   });
   const avgSec = times.length>0 ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
-  const min=Math.floor(avgSec/60);
-  const sec=avgSec%60;
+  const min = Math.floor(avgSec/60);
+  const sec = avgSec%60;
   avgTimeEl.textContent = times.length>0 ? `${min}m ${sec}s` : "N/A";
 }
-
-/* Update fulfilledTime when delivered */
-onChildChanged(ordersRef,snap=>{
-  const order = snap.val();
-  if(order.fulfilled && !order.fulfilledTime){
-    update(ref(db, `orders/${snap.key}`), { fulfilledTime: new Date().toISOString() });
-  }
-});
 </script>
-
 </body>
 </html>
