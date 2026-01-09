@@ -7,32 +7,67 @@
 
 <style>
 body { font-family:Arial,sans-serif; background:#eef4fc; margin:0; }
-header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
+
+header {
+  background:#3f7fbf;
+  color:white;
+  text-align:center;
+  padding:15px;
+}
+
+header button { margin:5px; }
+
+.stats {
+  display:flex;
+  justify-content:space-around;
+  background:white;
+  margin:10px;
+  padding:10px;
+  border-radius:8px;
+}
 
 .order {
   background:white;
   padding:12px;
   border-radius:6px;
   margin-bottom:12px;
+  position:relative;
 }
 
-.blocked-ip {
+.new { background:#ffe6e6; }
+.ack { background:#fff3cd; }
+.fulfilled { background:#e6f4ea; }
+
+.deliver-btn {
+  position:absolute;
+  bottom:10px;
+  right:10px;
+}
+
+.ip {
+  font-size:12px;
+  color:#555;
+}
+
+.blocked {
   color:#c0392b;
   font-weight:bold;
 }
 
-button {
-  margin-top:8px;
-  padding:6px 12px;
-  border:none;
-  border-radius:4px;
-  background:#3f7fbf;
+.badge {
+  background:red;
   color:white;
-  cursor:pointer;
+  border-radius:50%;
+  padding:2px 6px;
+  font-size:12px;
+  margin-left:6px;
+  display:none;
 }
 
-.block-btn { background:#c0392b; }
-.unblock-btn { background:#27ae60; }
+.clear-btn {
+  background:#c0392b;
+  color:white;
+}
 </style>
 </head>
 
@@ -40,9 +75,21 @@ button {
 
 <header>
   <h1>Staff Orders</h1>
+
+  <button id="feedbackBtn">
+    Feedback ⭐ <span id="feedbackBadge" class="badge">0</span>
+  </button>
+
+  <button id="clearFulfilled" class="clear-btn">Clear Fulfilled</button>
+  <button id="clearAll" class="clear-btn">⚠ Clear All</button>
 </header>
 
-<main style="padding:20px;max-width:800px;margin:auto;" id="orders"></main>
+<div class="stats">
+  <div>☕ Last 24h: <strong id="count24">0</strong></div>
+  <div>⏱ Avg Time: <strong id="avgTime">—</strong></div>
+</div>
+
+<main id="orders" style="padding:20px;max-width:800px;margin:auto;"></main>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -50,9 +97,11 @@ import {
   getDatabase,
   ref,
   onChildAdded,
+  onChildChanged,
+  onChildRemoved,
+  onValue,
   update,
-  remove,
-  get
+  remove
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -65,44 +114,130 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const ordersRef = ref(db, "orders");
+const feedbackRef = ref(db, "feedback");
 const blockedRef = ref(db, "blockedIPs");
 
 const ordersDiv = document.getElementById("orders");
+const badge = document.getElementById("feedbackBadge");
+const count24El = document.getElementById("count24");
+const avgTimeEl = document.getElementById("avgTime");
 
-onChildAdded(ordersRef, async snap => {
-  const o = snap.val();
-  const ip = o.ipAddress || "unknown";
+let blockedIPs = {};
+let feedbackCount = 0;
+let fulfilledTimes = [];
 
-  const blocked = (await get(ref(db, `blockedIPs/${ip}`))).exists();
+/* Load blocked IPs once */
+onValue(blockedRef, snap => {
+  blockedIPs = snap.val() || {};
+});
+
+/* Feedback badge */
+onChildAdded(feedbackRef, () => {
+  feedbackCount++;
+  badge.textContent = feedbackCount;
+  badge.style.display = "inline-block";
+});
+
+document.getElementById("feedbackBtn").onclick = () => {
+  feedbackCount = 0;
+  badge.style.display = "none";
+  window.location.href = "staff-feedback.html";
+};
+
+/* Metrics */
+function updateMetrics() {
+  const now = Date.now();
+  const last24 = fulfilledTimes.filter(t => now - t.delivered < 86400000);
+  count24El.textContent = last24.length;
+
+  if (last24.length) {
+    const avgMs = last24.reduce((a,b)=>a+(b.delivered-b.ordered),0)/last24.length;
+    avgTimeEl.textContent = Math.round(avgMs/60000) + " min";
+  }
+}
+
+/* Render order */
+function renderOrder(order, key) {
+  const ip = order.ipAddress || "unknown";
+  const isBlocked = blockedIPs[ip];
 
   const div = document.createElement("div");
-  div.className = "order";
+  div.id = key;
+  div.className = `order ${order.fulfilled ? "fulfilled" : "new"}`;
 
   div.innerHTML = `
-    <strong>${o.customerName}</strong><br>
-    ${o.drink}<br>
-    IP: <span class="${blocked ? "blocked-ip" : ""}">${ip}</span><br>
-    <button class="${blocked ? "unblock-btn" : "block-btn"}">
-      ${blocked ? "Unblock IP" : "Block IP"}
+    <strong>${order.customerName}</strong><br>
+    ${order.drink} – ${order.temperature}<br>
+    Milk: ${order.milk}, Sweetener: ${order.sweetener}<br>
+    <div class="ip ${isBlocked ? "blocked" : ""}">
+      IP: ${ip}
+    </div>
+    <em>${order.displayTime}</em><br>
+    ${order.fulfilled ? "" : "<button class='deliver-btn'>Delivered</button>"}
+    <button class="${isBlocked ? "" : "clear-btn"}">
+      ${isBlocked ? "Unblock IP" : "Block IP"}
     </button>
   `;
 
-  div.querySelector("button").onclick = () => {
-    if (blocked) {
+  if (!order.fulfilled) {
+    div.querySelector(".deliver-btn").onclick = () => {
+      update(ref(db, `orders/${key}`), {
+        fulfilled: true,
+        deliveredAt: Date.now()
+      });
+    };
+  }
+
+  div.querySelector("button:last-of-type").onclick = () => {
+    if (isBlocked) {
       remove(ref(db, `blockedIPs/${ip}`));
-      alert("IP unblocked");
     } else {
       update(ref(db, `blockedIPs/${ip}`), {
         blocked: true,
         blockedAt: Date.now()
       });
-      alert("IP blocked");
     }
-    location.reload();
   };
 
   ordersDiv.prepend(div);
+}
+
+/* Orders listeners */
+onChildAdded(ordersRef, snap => {
+  renderOrder(snap.val(), snap.key);
 });
+
+onChildChanged(ordersRef, snap => {
+  const o = snap.val();
+  if (o.fulfilled && o.deliveredAt) {
+    fulfilledTimes.push({
+      ordered: o.timestamp,
+      delivered: o.deliveredAt
+    });
+    updateMetrics();
+    document.getElementById(snap.key)?.classList.add("fulfilled");
+  }
+});
+
+onChildRemoved(ordersRef, snap => {
+  document.getElementById(snap.key)?.remove();
+});
+
+/* Clear fulfilled */
+document.getElementById("clearFulfilled").onclick = () => {
+  if (!confirm("Clear all fulfilled orders?")) return;
+  document.querySelectorAll(".fulfilled").forEach(div => {
+    remove(ref(db, `orders/${div.id}`));
+  });
+};
+
+/* Clear all */
+document.getElementById("clearAll").onclick = () => {
+  if (!confirm("⚠ Delete ALL orders?")) return;
+  document.querySelectorAll(".order").forEach(div => {
+    remove(ref(db, `orders/${div.id}`));
+  });
+};
 </script>
 
 </body>
