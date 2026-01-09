@@ -4,56 +4,58 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe – Feedback</title>
-
 <style>
-body { font-family:'Segoe UI',sans-serif; background:#f0f4fa; margin:0; }
-header { background:#4a6fa5; color:white; text-align:center; padding:16px; }
+body { font-family: 'Segoe UI', sans-serif; background:#f0f4fa; color:#2a3a59; margin:0; }
+header { background:#4a6fa5; color:white; text-align:center; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+header img { width:80px; border-radius:12px; margin-bottom:8px; }
 .container { max-width:480px; margin:auto; padding:16px; }
-.card { background:white; border-radius:12px; padding:16px; box-shadow:0 3px 10px rgba(0,0,0,0.1); }
-
-.stars { display:flex; justify-content:center; font-size:32px; gap:10px; cursor:pointer; }
-.stars span { color:#ccc; }
-.stars span.active { color:#f5b301; }
-
-input, textarea, button {
-  width:100%;
-  margin-top:12px;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #aac4e0;
-  font-size:16px;
-}
-
-button {
-  background:#4a6fa5;
-  color:white;
-  border:none;
-  font-weight:bold;
-  cursor:pointer;
-}
+.card { background:white; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(0,0,0,0.08); }
+h3 { margin-bottom:8px; color:#3b4b75; }
+textarea { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; resize:none; }
+select, button { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; margin-top:10px; cursor:pointer; }
+button { background:#4a6fa5; color:white; font-weight:bold; border:none; transition:background 0.3s ease; }
+button:disabled { background:#9bb0d0; cursor:not-allowed; }
+footer { text-align:center; font-size:14px; color:#2a3a59; font-style:italic; margin-top:16px; }
+.star { font-size:24px; cursor:pointer; color:#d3d3d3; }
+.star.selected { color:#f5c518; }
 </style>
 </head>
 
 <body>
 
 <header>
-  <h2>Leave Feedback ⭐</h2>
+  <img src="https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg" alt="Cafe Logo">
+  <h2>Leave Your Feedback</h2>
 </header>
 
 <div class="container">
   <div class="card">
-    <input id="name" placeholder="Your name (optional)">
-    <div class="stars">
-      <span data-value="1">★</span>
-      <span data-value="2">★</span>
-      <span data-value="3">★</span>
-      <span data-value="4">★</span>
-      <span data-value="5">★</span>
-    </div>
-    <textarea id="comment" rows="4" placeholder="Comments (optional)"></textarea>
-    <button id="submit" disabled>Submit Feedback</button>
+    <h3>Your Name</h3>
+    <input type="text" id="reviewName" placeholder="Your name (optional)" maxlength="50">
   </div>
+
+  <div class="card">
+    <h3>Rate Us</h3>
+    <div id="stars">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Comments</h3>
+    <textarea id="reviewComment" rows="4" placeholder="Write your feedback here..."></textarea>
+  </div>
+
+  <button id="submitReview" disabled>Submit Feedback</button>
 </div>
+
+<footer>
+  Thank you for helping us make C&E's Cafe even better!
+</footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -64,37 +66,67 @@ const firebaseConfig = {
   authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebaseappdestorage.app",
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const feedbackRef = ref(db, "feedback");
+const reviewsRef = ref(db, "reviews");
 
+let clientIP = "";
+
+// Fetch client IP
+async function fetchIP() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    clientIP = data.ip;
+  } catch(e) {
+    console.warn("Could not fetch IP:", e);
+  }
+}
+fetchIP();
+
+// Star rating logic
 let rating = 0;
-const stars = document.querySelectorAll(".stars span");
-const submitBtn = document.getElementById("submit");
-
+const stars = document.querySelectorAll(".star");
 stars.forEach(star => {
-  star.onclick = () => {
-    rating = Number(star.dataset.value);
-    stars.forEach(s => s.classList.toggle("active", s.dataset.value <= rating));
-    submitBtn.disabled = false;
-  };
+  star.addEventListener("click", () => {
+    rating = parseInt(star.dataset.value);
+    stars.forEach(s => s.classList.toggle("selected", parseInt(s.dataset.value) <= rating));
+    validateForm();
+  });
 });
 
-submitBtn.onclick = () => {
-  push(feedbackRef, {
-    name: document.getElementById("name").value.trim(),
+// Enable submit if rating or comment is given
+function validateForm() {
+  const comment = document.getElementById("reviewComment").value.trim();
+  document.getElementById("submitReview").disabled = !(rating > 0 || comment.length > 0);
+}
+
+// Validate comment
+document.getElementById("reviewComment").addEventListener("input", validateForm);
+
+// Submit review
+document.getElementById("submitReview").addEventListener("click", () => {
+  const review = {
+    name: document.getElementById("reviewName").value.trim() || "Anonymous",
     rating,
-    comment: document.getElementById("comment").value.trim(),
-    timestamp: Date.now()
-  }).then(() => {
-    alert("Thanks for your feedback!");
-    window.location.href = "index.html";
+    comment: document.getElementById("reviewComment").value.trim(),
+    timestamp: new Date().toISOString(),
+    ip: clientIP
+  };
+  push(reviewsRef, review).then(() => {
+    alert("Thank you for your feedback!");
+    document.getElementById("reviewName").value = "";
+    document.getElementById("reviewComment").value = "";
+    rating = 0;
+    stars.forEach(s => s.classList.remove("selected"));
+    document.getElementById("submitReview").disabled = true;
   });
-};
+});
 </script>
 
 </body>
