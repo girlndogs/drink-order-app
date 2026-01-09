@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe – Order</title>
 
-<!-- ====== CSS ====== -->
 <style>
-/* General Styles */
 body {
   margin: 0;
   font-family: 'Segoe UI', sans-serif;
@@ -95,9 +93,24 @@ footer {
   font-style: italic;
 }
 
-/* Highlight invalid fields */
 input:invalid, select:invalid {
   border-color: #e05c5c;
+}
+
+/* Message toast */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4a6fa5;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  z-index: 9999;
+  font-size: 16px;
+  text-align: center;
 }
 </style>
 </head>
@@ -112,13 +125,11 @@ input:invalid, select:invalid {
 <div class="hero"></div>
 
 <div class="container">
-  <!-- Name -->
   <div class="card">
     <label for="customerName">Your Name</label>
     <input type="text" id="customerName" name="customerName" placeholder="Please enter your name (max 50 characters)" maxlength="50" required>
   </div>
 
-  <!-- Drink -->
   <div class="card">
     <label for="drink">Select Drink</label>
     <select id="drink" required>
@@ -147,7 +158,6 @@ input:invalid, select:invalid {
     </select>
   </div>
 
-  <!-- Temperature -->
   <div class="card">
     <label for="temperature">Temperature</label>
     <select id="temperature" required>
@@ -160,7 +170,6 @@ input:invalid, select:invalid {
     </select>
   </div>
 
-  <!-- Milk -->
   <div class="card">
     <label for="milk">Milk</label>
     <select id="milk" required>
@@ -172,7 +181,6 @@ input:invalid, select:invalid {
     </select>
   </div>
 
-  <!-- Sweetener -->
   <div class="card">
     <label for="sweetener">Sweetener</label>
     <select id="sweetener" required>
@@ -191,7 +199,6 @@ input:invalid, select:invalid {
   We highly appreciate recommendations to make your next visit more relaxing and pleasant
 </footer>
 
-<!-- ====== JS ====== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -216,9 +223,14 @@ const fields = ["customerName","drink","temperature","milk","sweetener"];
 const submitBtn = document.getElementById("submitOrder");
 const nameInput = document.getElementById("customerName");
 let clientIP = "";
+let isBlockedIP = false;
+
+/* ===== Example Blocked IPs ===== */
+const blockedIPs = ["123.45.67.89", "111.222.333.444"]; // Replace with real IPs to block
 
 /* ===== Form Validation ===== */
 function validateForm() {
+  if(isBlockedIP) return; // Do not allow if blocked
   const valid = fields.every(id => document.getElementById(id).value.trim() !== "");
   submitBtn.disabled = !valid;
 }
@@ -234,20 +246,34 @@ nameInput.addEventListener("input", () => {
   if(nameInput.value.length > 50) nameInput.value = nameInput.value.slice(0,50);
 });
 
-/* ===== Fetch Client IP (optional) ===== */
+/* ===== Fetch Client IP ===== */
 async function fetchIP() {
   try {
     const res = await fetch('https://api.ipify.org?format=json');
     const data = await res.json();
     clientIP = data.ip;
+    checkBlockedIP();
   } catch(e){
     console.warn("Could not fetch IP:", e);
   }
 }
 fetchIP();
 
+/* ===== Check if IP is blocked ===== */
+function checkBlockedIP() {
+  if(blockedIPs.includes(clientIP)){
+    isBlockedIP = true;
+    submitBtn.disabled = true;
+    showMessage("⚠️ Your IP has been blocked from placing orders.");
+    fields.forEach(id => document.getElementById(id).disabled = true);
+  } else {
+    validateForm();
+  }
+}
+
 /* ===== Submit Order ===== */
 submitBtn.addEventListener("click", async () => {
+  if(isBlockedIP) return;
   const order = {};
   fields.forEach(id => {
     order[id] = document.getElementById(id).value.trim();
@@ -278,22 +304,13 @@ function resetForm() {
     el.value = "";
     if(el.tagName === "SELECT") el.selectedIndex = 0;
   });
-  submitBtn.disabled = true;
+  validateForm();
 }
 
 function showMessage(msg) {
   const tempDiv = document.createElement("div");
   tempDiv.textContent = msg;
-  tempDiv.style.position = "fixed";
-  tempDiv.style.bottom = "16px";
-  tempDiv.style.left = "50%";
-  tempDiv.style.transform = "translateX(-50%)";
-  tempDiv.style.background = "#4a6fa5";
-  tempDiv.style.color = "#fff";
-  tempDiv.style.padding = "12px 20px";
-  tempDiv.style.borderRadius = "12px";
-  tempDiv.style.boxShadow = "0 3px 10px rgba(0,0,0,0.2)";
-  tempDiv.style.zIndex = 9999;
+  tempDiv.classList.add("toast");
   document.body.appendChild(tempDiv);
   setTimeout(() => tempDiv.remove(), 3000);
 }
