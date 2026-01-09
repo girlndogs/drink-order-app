@@ -8,30 +8,22 @@
 body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
 header { background:#3f7fbf; color:white; text-align:center; padding:15px; position:sticky; top:0; z-index:1000; }
 header button { margin:5px; }
-
 main { padding:20px; max-width:900px; margin:auto; }
-
 .order { border:1px solid #ccc; padding:12px; margin-bottom:12px; border-radius:6px; position:relative; }
 .new-order { background:#ffe6e6; }
 .acknowledged { background:#fff3cd; }
 .fulfilled-order { background:#e6f4ea; }
 .fulfilled-check { position:absolute; top:10px; right:10px; font-size:22px; color:green; }
-
 button { padding:6px 12px; background:#3f7fbf; color:white; border:none; cursor:pointer; border-radius:4px; }
 button:hover { background:#2e5f9e; }
-
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
-
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
-.feedback-btn { background:#f39c12; margin-top:20px; display:block; width:95%; }
+.feedback-btn { position:absolute; bottom:10px; left:10px; background:#f39c12; }
 .feedback-btn:hover { background:#d68910; }
-.block-btn { position:absolute; bottom:10px; left:10px; background:#e74c3c; }
+.block-btn { position:absolute; bottom:10px; left:140px; background:#e74c3c; }
 .block-btn:hover { background:#c0392b; }
-
 .stats { margin:10px 0; font-weight:bold; }
-
-#bottomButtons { text-align:center; margin-top:30px; }
 </style>
 </head>
 <body>
@@ -39,6 +31,7 @@ button:hover { background:#2e5f9e; }
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
   <button id="enableSound">Enable Notifications 🔔</button>
+  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
   <div class="stats">
@@ -51,17 +44,12 @@ button:hover { background:#2e5f9e; }
   <div id="orders"></div>
 </main>
 
-<div id="bottomButtons">
-  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
-  <button id="viewBlockedIPs" class="feedback-btn" style="background:#e74c3c;">View Blocked IPs 🚫</button>
-</div>
-
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getDatabase, ref, onChildAdded, onChildChanged, update, remove, query, orderByChild
+  getDatabase, ref, onChildAdded, onChildChanged, update, remove, query, orderByChild, get
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -82,7 +70,7 @@ const ordersDiv = document.getElementById("orders");
 const bell = document.getElementById("bellSound");
 
 let soundEnabled = false;
-let bellTimers = {}; // track interval per unacknowledged order
+let bellInterval = null;
 const spokenOrders = new Set();
 
 // Enable notifications
@@ -92,32 +80,37 @@ document.getElementById("enableSound").addEventListener("click", () => {
 
 // Navigate to feedback viewer
 document.getElementById("viewFeedback").addEventListener("click", () => {
-  window.location.href = "staff-feedback.html";
+  window.location.href = "staff_feedback.html";
 });
 
-// Navigate to blocked IPs page
-document.getElementById("viewBlockedIPs").addEventListener("click", () => {
-  window.location.href = "blocked-ips.html";
-});
+// Bell function (only rings for unacknowledged orders)
+function startBell() {
+  if (!soundEnabled || bellInterval) return;
+  const unacknowledged = Array.from(document.querySelectorAll(".order.new-order, .order.acknowledged")).length;
+  if(unacknowledged === 0) return;
 
-// Bell for order
-function startBell(key) {
-  if(!soundEnabled || bellTimers[key]) return;
-  const playBell = () => { bell.currentTime=0; bell.play().catch(()=>{}); };
-  playBell();
-  bellTimers[key] = setInterval(playBell, 30000);
+  bell.currentTime = 0; bell.play().catch(()=>{});
+  bellInterval = setInterval(() => {
+    const unack = Array.from(document.querySelectorAll(".order.new-order, .order.acknowledged")).length;
+    if(unack === 0) { stopBell(); return; }
+    bell.currentTime = 0; bell.play().catch(()=>{});
+  }, 30000);
 }
 
-function stopBell(key) {
-  clearInterval(bellTimers[key]);
-  delete bellTimers[key];
-}
+function stopBell() { clearInterval(bellInterval); bellInterval = null; }
 
-// Voice alert
+// Speak order (female, warmer voice)
 function speakNewOrder(name) {
-  if (!soundEnabled || !window.speechSynthesis || spokenOrders.has(name)) return;
+  if (!soundEnabled || !window.speechSynthesis) return;
+  if (spokenOrders.has(name)) return;
   spokenOrders.add(name);
+
   const msg = new SpeechSynthesisUtterance(`Hey! A new order for ${name} has arrived.`);
+  // Select a female voice if available
+  const voices = window.speechSynthesis.getVoices();
+  msg.voice = voices.find(v => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("zira")) || voices[0];
+  msg.pitch = 1.2;
+  msg.rate = 1.0;
   window.speechSynthesis.speak(msg);
 }
 
@@ -143,23 +136,19 @@ function addOrder(order,key) {
   `;
 
   ordersDiv.prepend(orderDiv);
-
-  // Start bell for this order if unacknowledged
-  if(!order.acknowledged && !order.fulfilled) startBell(key);
+  startBell();
   speakNewOrder(order.customerName);
 
   // Button events
-  orderDiv.querySelector(".ackBtn").onclick = ()=>{
-    update(ref(db,`orders/${key}`),{acknowledged:true});
-    stopBell(key);
-  };
-  orderDiv.querySelector(".fulfillBtn").onclick = ()=>{
-    update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt:new Date().toISOString()});
-    stopBell(key);
+  orderDiv.querySelector(".ackBtn").onclick = ()=>update(ref(db,`orders/${key}`),{acknowledged:true});
+  orderDiv.querySelector(".fulfillBtn").onclick = async ()=> {
+    const deliveredAt = new Date().toISOString();
+    await update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt});
+    updateStats(); // Refresh stats after delivery
   };
   orderDiv.querySelector(".blockBtn").onclick = ()=>{
     if(confirm(`Block IP ${order.ip}?`)) {
-      update(ref(db,`blockedIPs/${order.ip}`),{blocked:true});
+      update(ref(db,`blockedIPs/${order.ip}`),{blocked:true, timestamp:new Date().toISOString()});
       alert(`IP ${order.ip} blocked.`);
     }
   };
@@ -172,18 +161,15 @@ onChildChanged(ordersRef,snap=>{
   const div=document.getElementById(snap.key);
   if(!div) return;
 
-  if(order.acknowledged && !order.fulfilled) {
-    div.className="order acknowledged";
-    stopBell(snap.key);
-  }
+  if(order.acknowledged && !order.fulfilled) div.className="order acknowledged";
   if(order.fulfilled) {
     div.className="order fulfilled-order";
     div.querySelectorAll("button").forEach(b=>b.remove());
     const check=document.createElement("span");
     check.className="fulfilled-check"; check.textContent="✅";
     div.appendChild(check);
-    stopBell(snap.key);
   }
+  startBell(); // check if bell should ring
 });
 
 // Clear fulfilled
@@ -193,6 +179,7 @@ document.getElementById("clearFulfilled").addEventListener("click",()=>{
     remove(ref(db,`orders/${div.id}`));
     div.remove();
   });
+  updateStats();
 });
 
 // Clear all
@@ -202,29 +189,34 @@ document.getElementById("clearAll").addEventListener("click",()=>{
     remove(ref(db,`orders/${div.id}`));
     div.remove();
   });
+  updateStats();
 });
 
 // Stats calculation
 async function updateStats() {
   const now = Date.now();
   const dayAgo = now - 24*60*60*1000;
-  const q = query(ordersRef, orderByChild('fulfilled'));
-  const snapshot = await q.once('value');
+  const snapshot = await get(ref(db,"orders"));
   let count=0, totalTime=0, fulfilledCount=0;
+
   snapshot.forEach(child=>{
-    const o=child.val();
+    const o = child.val();
     if(o.fulfilled && new Date(o.deliveredAt).getTime() > dayAgo){
       count++;
-      const start=new Date(o.timestamp).getTime();
-      const end=new Date(o.deliveredAt).getTime();
+      const start = new Date(o.timestamp).getTime();
+      const end = new Date(o.deliveredAt).getTime();
       totalTime += (end-start)/60000; // minutes
       fulfilledCount++;
     }
   });
-  document.getElementById("drinksMade").textContent=count;
+
+  document.getElementById("drinksMade").textContent = count;
   document.getElementById("avgTime").textContent = fulfilledCount ? (totalTime/fulfilledCount).toFixed(1) : '0';
 }
-setInterval(updateStats,5000); // refresh stats
+
+// Refresh stats every 5 seconds
+setInterval(updateStats,5000);
+updateStats();
 
 </script>
 </body>
