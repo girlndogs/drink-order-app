@@ -6,51 +6,24 @@
 <title>C&E's Cafe - Staff Orders</title>
 <style>
 body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
-header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
+header { background:#3f7fbf; color:white; text-align:center; padding:15px; position:sticky; top:0; z-index:10; }
 header button { margin:5px; }
 main { padding:20px; max-width:900px; margin:auto; }
 
-.order {
-  border:1px solid #ccc;
-  padding:12px;
-  margin-bottom:12px;
-  border-radius:6px;
-  position:relative;
-}
-
+.order { border:1px solid #ccc; padding:12px; margin-bottom:12px; border-radius:6px; position:relative; }
 .new-order { background:#ffe6e6; }
 .acknowledged { background:#fff3cd; }
 .fulfilled-order { background:#e6f4ea; }
+.fulfilled-check { position:absolute; top:10px; right:10px; font-size:22px; color:green; }
 
-.fulfilled-check {
-  position:absolute;
-  top:10px;
-  right:10px;
-  font-size:22px;
-  color:green;
-}
-
-button {
-  padding:6px 12px;
-  background:#3f7fbf;
-  color:white;
-  border:none;
-  cursor:pointer;
-  border-radius:4px;
-  margin-right:5px;
-}
-
+button { padding:6px 12px; background:#3f7fbf; color:white; border:none; cursor:pointer; border-radius:4px; }
 button:hover { background:#2e5f9e; }
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
-.block-btn { background:#e67e22; }
-.block-btn:hover { background:#d35400; }
-
-.stats {
-  margin: 15px;
-  font-size: 16px;
-}
+.stats { margin-bottom:12px; padding:10px; background:#dce8f7; border-radius:6px; font-weight:bold; }
+.feedback-btn { background:#27ae60; }
+.feedback-btn:hover { background:#1e8449; }
 </style>
 </head>
 <body>
@@ -60,14 +33,14 @@ button:hover { background:#2e5f9e; }
   <button id="enableSound">Enable Notifications 🔔</button>
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
+  <button id="viewFeedback" class="feedback-btn">📋 View Feedback</button>
 </header>
 
-<div class="stats">
-  <span id="totalDrinks">Total drinks made (24h): 0</span> |
-  <span id="avgTime">Average time per drink: 0 min</span>
-</div>
-
 <main>
+  <div class="stats">
+    Drinks made in last 24h: <span id="drinksMade">0</span> |
+    Average make time: <span id="avgTime">N/A</span>
+  </div>
   <div id="orders"></div>
 </main>
 
@@ -76,23 +49,17 @@ button:hover { background:#2e5f9e; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getDatabase,
-  ref,
-  onChildAdded,
-  onChildChanged,
-  update,
-  remove,
-  query,
-  orderByChild,
-  get
+  getDatabase, ref, onChildAdded, onChildChanged,
+  update, remove, get, query, orderByChild
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
 /* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebaseappdestorage.app",
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
@@ -100,154 +67,88 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
-const blockedRef = ref(db, "blocked_ips");
-const messaging = getMessaging(app);
 
 const ordersDiv = document.getElementById("orders");
 const bell = document.getElementById("bellSound");
-const totalDrinksEl = document.getElementById("totalDrinks");
+const drinksMadeEl = document.getElementById("drinksMade");
 const avgTimeEl = document.getElementById("avgTime");
 
 let soundEnabled = false;
 let bellInterval = null;
-const spokenOrders = new Set();
-let blockedIPs = new Set();
+const spokenOrders = new Set(); // prevent repeat speech
+const blockedIPs = new Set();
 
-/* Enable notifications */
-document.getElementById("enableSound").addEventListener("click", async () => {
-  try {
-    await bell.play();
-    bell.pause();
-    bell.currentTime = 0;
-    soundEnabled = true;
-    alert("Notifications enabled! 🔔");
-
-    if ("Notification" in window && Notification.permission !== "granted") {
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        const token = await getToken(messaging, {
-          vapidKey: "BLDw10RXk8HbYhJsvV6hMYhuDsxMSxSXaAgZ8W0PiU_nakxoVfBeRta0T-nuzLbj3ieLJjSk2ZXUSHNtv8vdBio"
-        });
-        console.log("Push token:", token);
-      }
-    }
-  } catch(e) { console.error(e); }
+/* Enable sound */
+document.getElementById("enableSound").addEventListener("click", () => {
+  bell.play().then(() => { bell.pause(); bell.currentTime=0; soundEnabled=true; alert("Notifications enabled!"); }).catch(()=>{});
 });
 
-/* Play bell */
+/* Feedback button navigation */
+document.getElementById("viewFeedback").addEventListener("click", () => {
+  window.location.href = "feedback.html"; // link to feedback viewer page
+});
+
+/* 🔔 Bell logic */
 function startBell() {
-  if (!soundEnabled || bellInterval) return;
-  bell.currentTime = 0;
-  bell.play().catch(()=>{});
-  bellInterval = setInterval(() => {
-    bell.currentTime = 0;
-    bell.play().catch(()=>{});
-  }, 30000);
+  if(!soundEnabled || bellInterval) return;
+  bell.currentTime=0; bell.play().catch(()=>{});
+  bellInterval = setInterval(()=>{ bell.currentTime=0; bell.play().catch(()=>{}); },30000);
 }
 function stopBell() { clearInterval(bellInterval); bellInterval=null; }
 
-/* Speech */
+/* 🗣️ Spoken alert */
 function speakNewOrder(name) {
-  if (!soundEnabled || !window.speechSynthesis) return;
-  if (spokenOrders.has(name)) return;
-  spokenOrders.add(name);
-  const msg = new SpeechSynthesisUtterance(`New order for ${name} has arrived!`);
+  if(!soundEnabled || !window.speechSynthesis) return;
+  const msg = new SpeechSynthesisUtterance(`Hey! New order for ${name} has arrived!`);
   msg.rate=1; msg.pitch=1; msg.volume=1;
   window.speechSynthesis.speak(msg);
 }
 
-/* Load blocked IPs */
-async function loadBlockedIPs() {
-  const snapshot = await get(blockedRef);
-  if (snapshot.exists()) blockedIPs = new Set(Object.keys(snapshot.val()));
-}
-loadBlockedIPs();
-
-/* Update stats */
-async function updateStats() {
-  const snapshot = await get(ordersRef);
-  let total = 0, sumMinutes=0, count=0;
-  const now = Date.now();
-  if(snapshot.exists()){
-    Object.values(snapshot.val()).forEach(o=>{
-      if(o.fulfilled){
-        const ts = new Date(o.timestamp).getTime();
-        if(now - ts < 86400000) total++;
-        if(o.acknowledged && o.fulfilled){
-          const madeTime = new Date(o.fulfilledTime || o.timestamp).getTime();
-          const orderTime = ts;
-          sumMinutes += Math.max(0,(madeTime - orderTime)/60000);
-          count++;
-        }
-      }
-    });
-  }
-  totalDrinksEl.textContent = `Total drinks made (24h): ${total}`;
-  avgTimeEl.textContent = `Average time per drink: ${count>0? (sumMinutes/count).toFixed(1):0} min`;
-}
-
-/* Add order to DOM */
+/* Add order */
 function addOrder(order,key){
-  const div=document.createElement("div");
-  div.id=key;
-  div.className="order new-order";
-  const ipDisplay = order.ip || "N/A";
-  const isBlocked = blockedIPs.has(ipDisplay);
-  div.innerHTML=`
+  const orderDiv = document.createElement("div");
+  orderDiv.id = key;
+  orderDiv.className = "order new-order";
+  orderDiv.innerHTML = `
     <strong>Customer:</strong> ${order.customerName}<br>
     <strong>Drink:</strong> ${order.drink}<br>
-    <strong>Temp:</strong> ${order.temperature}<br>
+    <strong>Temperature:</strong> ${order.temperature}<br>
     <strong>Milk:</strong> ${order.milk}<br>
     <strong>Sweetener:</strong> ${order.sweetener}<br>
-    <strong>Time:</strong> ${order.timestamp}<br>
-    <strong>IP:</strong> ${ipDisplay}<br>
+    <strong>Time:</strong> ${new Date(order.timestamp).toLocaleString()}<br>
+    <strong>IP:</strong> ${order.ip || "N/A"}<br>
     <button class="ackBtn">I'll make that now! 🛎️</button>
-    <button class="block-btn">${isBlocked?"Unblock IP":"Block IP"}</button>
+    <button class="blockIPBtn">Block IP 🚫</button>
     <button class="fulfillBtn deliver-btn">Delivered ✅</button>
   `;
-  ordersDiv.prepend(div);
-
+  ordersDiv.prepend(orderDiv);
+  if(!spokenOrders.has(key)){ spokenOrders.add(key); setTimeout(()=>speakNewOrder(order.customerName),800); }
   startBell();
-  speakNewOrder(order.customerName);
 
-  div.querySelector(".ackBtn").onclick = () => update(ref(db, `orders/${key}`), { acknowledged:true });
-  div.querySelector(".fulfillBtn").onclick = async () => {
-    const nowISO = new Date().toISOString();
-    await update(ref(db, `orders/${key}`), { fulfilled:true, fulfilledTime: nowISO });
-    updateStats();
-  };
-  div.querySelector(".block-btn").onclick = async (e)=>{
-    const ip = order.ip;
-    if(!ip) return alert("No IP available");
-    const path = ref(db, `blocked_ips/${ip}`);
-    if(blockedIPs.has(ip)){
-      await remove(path);
-      blockedIPs.delete(ip);
-      e.target.textContent="Block IP";
-    }else{
-      await update(path,true);
-      blockedIPs.add(ip);
-      e.target.textContent="Unblock IP";
+  orderDiv.querySelector(".ackBtn").onclick = () => { update(ref(db, `orders/${key}`), { acknowledged:true }); };
+  orderDiv.querySelector(".fulfillBtn").onclick = () => { update(ref(db, `orders/${key}`), { fulfilled:true }); };
+  orderDiv.querySelector(".blockIPBtn").onclick = () => {
+    if(confirm(`Block IP ${order.ip}?`)){
+      blockedIPs.add(order.ip);
+      alert(`${order.ip} blocked.`);
+      orderDiv.style.opacity = "0.5";
     }
   };
 }
 
-/* Listen for orders */
+/* Update order display */
 onChildAdded(ordersRef,snap=>{ addOrder(snap.val(),snap.key); updateStats(); });
 onChildChanged(ordersRef,snap=>{
   const order=snap.val();
   const div=document.getElementById(snap.key);
   if(!div) return;
   if(order.acknowledged && !order.fulfilled) div.className="order acknowledged";
-  if(order.fulfilled){
+  if(order.fulfilled){ 
     div.className="order fulfilled-order";
     div.querySelectorAll("button").forEach(b=>b.remove());
     const check=document.createElement("span");
-    check.className="fulfilled-check";
-    check.textContent="✅";
-    div.appendChild(check);
+    check.className="fulfilled-check"; check.textContent="✅"; div.appendChild(check);
     updateStats();
-    stopBell();
   }
 });
 
@@ -271,13 +172,40 @@ document.getElementById("clearAll").addEventListener("click",()=>{
   updateStats();
 });
 
-/* Push notifications */
-onMessage(messaging,payload=>{
-  if(soundEnabled){
-    bell.currentTime=0; bell.play().catch(()=>{});
+/* Stats calculation */
+async function updateStats(){
+  const q = query(ordersRef, orderByChild("fulfilled"));
+  const snap = await get(q);
+  const orders = [];
+  snap.forEach(s=>{
+    const o=s.val();
+    o.key=s.key; orders.push(o);
+  });
+  const now = new Date();
+  const last24h = orders.filter(o=>{
+    const t=new Date(o.timestamp);
+    return o.fulfilled && (now-t)<=24*60*60*1000;
+  });
+  drinksMadeEl.textContent = last24h.length;
+
+  // Average time
+  const times = last24h.map(o=>{
+    const t1=new Date(o.timestamp);
+    const t2=o.fulfilledTime ? new Date(o.fulfilledTime) : t1;
+    return (t2-t1)/1000; // seconds
+  });
+  const avgSec = times.length>0 ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
+  const min=Math.floor(avgSec/60);
+  const sec=avgSec%60;
+  avgTimeEl.textContent = times.length>0 ? `${min}m ${sec}s` : "N/A";
+}
+
+/* Update fulfilledTime when delivered */
+onChildChanged(ordersRef,snap=>{
+  const order = snap.val();
+  if(order.fulfilled && !order.fulfilledTime){
+    update(ref(db, `orders/${snap.key}`), { fulfilledTime: new Date().toISOString() });
   }
-  const notif = payload.notification;
-  if(notif) new Notification(notif.title || "New Order",{ body:notif.body||"", icon:notif.icon||"" });
 });
 </script>
 
