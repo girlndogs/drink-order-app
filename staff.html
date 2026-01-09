@@ -8,22 +8,30 @@
 body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
 header { background:#3f7fbf; color:white; text-align:center; padding:15px; position:sticky; top:0; z-index:1000; }
 header button { margin:5px; }
+
 main { padding:20px; max-width:900px; margin:auto; }
+
 .order { border:1px solid #ccc; padding:12px; margin-bottom:12px; border-radius:6px; position:relative; }
 .new-order { background:#ffe6e6; }
 .acknowledged { background:#fff3cd; }
 .fulfilled-order { background:#e6f4ea; }
 .fulfilled-check { position:absolute; top:10px; right:10px; font-size:22px; color:green; }
+
 button { padding:6px 12px; background:#3f7fbf; color:white; border:none; cursor:pointer; border-radius:4px; }
 button:hover { background:#2e5f9e; }
+
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
+
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
-.feedback-btn { position:absolute; top:10px; left:10px; background:#f39c12; }
+.feedback-btn { background:#f39c12; margin-top:20px; display:block; width:95%; }
 .feedback-btn:hover { background:#d68910; }
 .block-btn { position:absolute; bottom:10px; left:10px; background:#e74c3c; }
 .block-btn:hover { background:#c0392b; }
+
 .stats { margin:10px 0; font-weight:bold; }
+
+#bottomButtons { text-align:center; margin-top:30px; }
 </style>
 </head>
 <body>
@@ -31,7 +39,6 @@ button:hover { background:#2e5f9e; }
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
   <button id="enableSound">Enable Notifications 🔔</button>
-  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
   <div class="stats">
@@ -43,6 +50,11 @@ button:hover { background:#2e5f9e; }
 <main>
   <div id="orders"></div>
 </main>
+
+<div id="bottomButtons">
+  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
+  <button id="viewBlockedIPs" class="feedback-btn" style="background:#e74c3c;">View Blocked IPs 🚫</button>
+</div>
 
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
 
@@ -65,13 +77,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
-const reviewsRef = ref(db, "reviews");
 
 const ordersDiv = document.getElementById("orders");
 const bell = document.getElementById("bellSound");
 
 let soundEnabled = false;
-let bellInterval = null;
+let bellTimers = {}; // track interval per unacknowledged order
 const spokenOrders = new Set();
 
 // Enable notifications
@@ -81,24 +92,32 @@ document.getElementById("enableSound").addEventListener("click", () => {
 
 // Navigate to feedback viewer
 document.getElementById("viewFeedback").addEventListener("click", () => {
-  window.location.href = "staff_feedback.html";
+  window.location.href = "staff-feedback.html";
 });
 
-// Start bell for new order
-function startBell() {
-  if (!soundEnabled || bellInterval) return;
-  bell.currentTime=0; bell.play().catch(()=>{});
-  bellInterval = setInterval(()=>{ bell.currentTime=0; bell.play().catch(()=>{}); },30000);
+// Navigate to blocked IPs page
+document.getElementById("viewBlockedIPs").addEventListener("click", () => {
+  window.location.href = "blocked-ips.html";
+});
+
+// Bell for order
+function startBell(key) {
+  if(!soundEnabled || bellTimers[key]) return;
+  const playBell = () => { bell.currentTime=0; bell.play().catch(()=>{}); };
+  playBell();
+  bellTimers[key] = setInterval(playBell, 30000);
 }
 
-function stopBell() { clearInterval(bellInterval); bellInterval=null; }
+function stopBell(key) {
+  clearInterval(bellTimers[key]);
+  delete bellTimers[key];
+}
 
-// Speak order once
+// Voice alert
 function speakNewOrder(name) {
-  if (!soundEnabled || !window.speechSynthesis) return;
-  if (spokenOrders.has(name)) return;
+  if (!soundEnabled || !window.speechSynthesis || spokenOrders.has(name)) return;
   spokenOrders.add(name);
-  const msg = new SpeechSynthesisUtterance(`New order for ${name}!`);
+  const msg = new SpeechSynthesisUtterance(`Hey! A new order for ${name} has arrived.`);
   window.speechSynthesis.speak(msg);
 }
 
@@ -124,12 +143,20 @@ function addOrder(order,key) {
   `;
 
   ordersDiv.prepend(orderDiv);
-  startBell();
+
+  // Start bell for this order if unacknowledged
+  if(!order.acknowledged && !order.fulfilled) startBell(key);
   speakNewOrder(order.customerName);
 
   // Button events
-  orderDiv.querySelector(".ackBtn").onclick = ()=>update(ref(db,`orders/${key}`),{acknowledged:true});
-  orderDiv.querySelector(".fulfillBtn").onclick = ()=>update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt:new Date().toISOString()});
+  orderDiv.querySelector(".ackBtn").onclick = ()=>{
+    update(ref(db,`orders/${key}`),{acknowledged:true});
+    stopBell(key);
+  };
+  orderDiv.querySelector(".fulfillBtn").onclick = ()=>{
+    update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt:new Date().toISOString()});
+    stopBell(key);
+  };
   orderDiv.querySelector(".blockBtn").onclick = ()=>{
     if(confirm(`Block IP ${order.ip}?`)) {
       update(ref(db,`blockedIPs/${order.ip}`),{blocked:true});
@@ -145,13 +172,17 @@ onChildChanged(ordersRef,snap=>{
   const div=document.getElementById(snap.key);
   if(!div) return;
 
-  if(order.acknowledged && !order.fulfilled) div.className="order acknowledged";
+  if(order.acknowledged && !order.fulfilled) {
+    div.className="order acknowledged";
+    stopBell(snap.key);
+  }
   if(order.fulfilled) {
     div.className="order fulfilled-order";
     div.querySelectorAll("button").forEach(b=>b.remove());
     const check=document.createElement("span");
     check.className="fulfilled-check"; check.textContent="✅";
     div.appendChild(check);
+    stopBell(snap.key);
   }
 });
 
