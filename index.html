@@ -57,10 +57,22 @@ button {
   color:white;
   font-weight:bold;
   border:none;
+  margin-top:10px;
+  cursor:pointer;
+  transition: background 0.3s ease;
 }
 
 button:disabled {
   background:#9bb0d0;
+  cursor:not-allowed;
+}
+
+button.review-btn {
+  background:#2a9d8f;
+}
+
+button.review-btn:hover {
+  background:#21867a;
 }
 
 .blocked {
@@ -153,6 +165,7 @@ button:disabled {
   </div>
 
   <button id="submit" disabled>Place Order</button>
+  <button class="review-btn" onclick="window.location.href='feedback.html'">Leave Feedback / Review ⭐</button>
 </div>
 
 <script type="module">
