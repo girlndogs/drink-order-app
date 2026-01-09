@@ -12,12 +12,17 @@ header img { width:80px; border-radius:12px; margin-bottom:8px; }
 .card { background:white; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(0,0,0,0.08); }
 h3 { margin-bottom:8px; color:#3b4b75; }
 textarea { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; resize:none; }
-select, button { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; margin-top:10px; cursor:pointer; }
+select, button, input { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; margin-top:10px; cursor:pointer; }
 button { background:#4a6fa5; color:white; font-weight:bold; border:none; transition:background 0.3s ease; }
 button:disabled { background:#9bb0d0; cursor:not-allowed; }
 footer { text-align:center; font-size:14px; color:#2a3a59; font-style:italic; margin-top:16px; }
 .star { font-size:24px; cursor:pointer; color:#d3d3d3; }
 .star.selected { color:#f5c518; }
+.toast {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: #4a6fa5; color: #fff; padding: 12px 20px; border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2); z-index: 9999; font-size: 16px; text-align: center;
+}
 </style>
 </head>
 
@@ -61,6 +66,7 @@ footer { text-align:center; font-size:14px; color:#2a3a59; font-style:italic; ma
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+/* ===== Firebase Config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -75,42 +81,64 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const reviewsRef = ref(db, "reviews");
 
+/* ===== Elements ===== */
+const submitBtn = document.getElementById("submitReview");
+const stars = document.querySelectorAll(".star");
+let rating = 0;
 let clientIP = "";
+let isBlockedIP = false;
 
-// Fetch client IP
+/* ===== Blocked IPs ===== */
+const blockedIPs = ["123.45.67.89", "111.222.333.444"]; // Replace with actual IPs
+
+/* ===== Fetch Client IP ===== */
 async function fetchIP() {
   try {
     const res = await fetch('https://api.ipify.org?format=json');
     const data = await res.json();
     clientIP = data.ip;
+    checkBlockedIP();
   } catch(e) {
     console.warn("Could not fetch IP:", e);
   }
 }
 fetchIP();
 
-// Star rating logic
-let rating = 0;
-const stars = document.querySelectorAll(".star");
+/* ===== Check if IP is blocked ===== */
+function checkBlockedIP() {
+  if(blockedIPs.includes(clientIP)){
+    isBlockedIP = true;
+    submitBtn.disabled = true;
+    showMessage("⚠️ Your IP has been blocked from submitting feedback.");
+    document.getElementById("reviewName").disabled = true;
+    document.getElementById("reviewComment").disabled = true;
+    stars.forEach(s => s.style.pointerEvents = "none");
+  }
+}
+
+/* ===== Star rating logic ===== */
 stars.forEach(star => {
   star.addEventListener("click", () => {
+    if(isBlockedIP) return;
     rating = parseInt(star.dataset.value);
     stars.forEach(s => s.classList.toggle("selected", parseInt(s.dataset.value) <= rating));
     validateForm();
   });
 });
 
-// Enable submit if rating or comment is given
+/* ===== Validate Form ===== */
 function validateForm() {
+  if(isBlockedIP) return;
   const comment = document.getElementById("reviewComment").value.trim();
-  document.getElementById("submitReview").disabled = !(rating > 0 || comment.length > 0);
+  submitBtn.disabled = !(rating > 0 || comment.length > 0);
 }
 
-// Validate comment
 document.getElementById("reviewComment").addEventListener("input", validateForm);
 
-// Submit review
-document.getElementById("submitReview").addEventListener("click", () => {
+/* ===== Submit Review ===== */
+submitBtn.addEventListener("click", async () => {
+  if(isBlockedIP) return;
+
   const review = {
     name: document.getElementById("reviewName").value.trim() || "Anonymous",
     rating,
@@ -118,15 +146,33 @@ document.getElementById("submitReview").addEventListener("click", () => {
     timestamp: new Date().toISOString(),
     ip: clientIP
   };
-  push(reviewsRef, review).then(() => {
-    alert("Thank you for your feedback!");
-    document.getElementById("reviewName").value = "";
-    document.getElementById("reviewComment").value = "";
-    rating = 0;
-    stars.forEach(s => s.classList.remove("selected"));
-    document.getElementById("submitReview").disabled = true;
-  });
+
+  try {
+    await push(reviewsRef, review);
+    showMessage("✅ Thank you for your feedback!");
+    resetForm();
+  } catch(e) {
+    console.error(e);
+    showMessage("⚠️ Failed to submit feedback. Please try again.");
+  }
 });
+
+/* ===== Helpers ===== */
+function resetForm() {
+  document.getElementById("reviewName").value = "";
+  document.getElementById("reviewComment").value = "";
+  rating = 0;
+  stars.forEach(s => s.classList.remove("selected"));
+  validateForm();
+}
+
+function showMessage(msg) {
+  const toast = document.createElement("div");
+  toast.textContent = msg;
+  toast.classList.add("toast");
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
 </script>
 
 </body>
