@@ -19,12 +19,12 @@ button:hover { background:#2e5f9e; }
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
-.feedback-btn, .blocked-btn { position:fixed; bottom:20px; left:20px; background:#f39c12; }
-.feedback-btn { left:20px; }
-.blocked-btn { left:180px; background:#e74c3c; }
+.feedback-btn { position:absolute; bottom:10px; left:10px; background:#f39c12; }
 .feedback-btn:hover { background:#d68910; }
-.blocked-btn:hover { background:#c0392b; }
+.block-btn { position:absolute; bottom:10px; left:140px; background:#e74c3c; }
+.block-btn:hover { background:#c0392b; }
 .stats { margin:10px 0; font-weight:bold; }
+.bottom-buttons { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; }
 </style>
 </head>
 <body>
@@ -44,16 +44,17 @@ button:hover { background:#2e5f9e; }
   <div id="orders"></div>
 </main>
 
-<!-- Footer buttons -->
-<button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
-<button id="viewBlocked" class="blocked-btn">View Blocked IPs 🚫</button>
+<div class="bottom-buttons">
+  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
+  <button id="viewBlockedIPs" class="block-btn">View Blocked IPs 🚫</button>
+</div>
 
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getDatabase, ref, onChildAdded, onChildChanged, update, remove, query, orderByChild, get
+  getDatabase, ref, onChildAdded, onChildChanged, update, remove, get
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -84,12 +85,12 @@ document.getElementById("enableSound").addEventListener("click", () => {
 
 // Navigate to feedback viewer
 document.getElementById("viewFeedback").addEventListener("click", () => {
-  window.location.href = "staff-feedback.html"; // corrected URL
+  window.location.href = "staff-feedback.html";
 });
 
-// Navigate to blocked IP page (placeholder)
-document.getElementById("viewBlocked").addEventListener("click", () => {
-  window.location.href = "blocked-ips.html"; // new page to be created
+// Navigate to blocked IPs page
+document.getElementById("viewBlockedIPs").addEventListener("click", () => {
+  window.location.href = "blocked-ips.html";
 });
 
 // Bell function (only rings for unacknowledged orders)
@@ -152,11 +153,14 @@ function addOrder(order,key) {
   orderDiv.querySelector(".fulfillBtn").onclick = async ()=> {
     const deliveredAt = new Date().toISOString();
     await update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt});
-    updateStats(); 
+    updateStats(); // Refresh stats
   };
   orderDiv.querySelector(".blockBtn").onclick = ()=>{
+    if(!order.ip) return alert("No IP available to block.");
     if(confirm(`Block IP ${order.ip}?`)) {
-      update(ref(db,`blockedIPs/${order.ip}`),{blocked:true, timestamp:new Date().toISOString()});
+      // Replace dots with dashes for Firebase key
+      const safeIP = order.ip.replace(/\./g,'-');
+      update(ref(db,`blockedIPs/${safeIP}`),{blocked:true, timestamp:new Date().toISOString(), originalIP:order.ip});
       alert(`IP ${order.ip} blocked.`);
     }
   };
@@ -177,7 +181,7 @@ onChildChanged(ordersRef,snap=>{
     check.className="fulfilled-check"; check.textContent="✅";
     div.appendChild(check);
   }
-  startBell(); 
+  startBell();
 });
 
 // Clear fulfilled
@@ -213,7 +217,7 @@ async function updateStats() {
       count++;
       const start = new Date(o.timestamp).getTime();
       const end = new Date(o.deliveredAt).getTime();
-      totalTime += (end-start)/60000; 
+      totalTime += (end-start)/60000; // minutes
       fulfilledCount++;
     }
   });
@@ -222,11 +226,8 @@ async function updateStats() {
   document.getElementById("avgTime").textContent = fulfilledCount ? (totalTime/fulfilledCount).toFixed(1) : '0';
 }
 
-// Refresh stats every 5 seconds
 setInterval(updateStats,5000);
 updateStats();
-
 </script>
 </body>
 </html>
-
