@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +8,7 @@
 body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
 header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
 header button { margin:5px; }
-main { padding:20px; max-width:800px; margin:auto; }
+main { padding:20px; max-width:900px; margin:auto; }
 
 .order {
   border:1px solid #ccc;
@@ -38,12 +37,20 @@ button {
   border:none;
   cursor:pointer;
   border-radius:4px;
+  margin-right:5px;
 }
 
 button:hover { background:#2e5f9e; }
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
+.block-btn { background:#e67e22; }
+.block-btn:hover { background:#d35400; }
+
+.stats {
+  margin: 15px;
+  font-size: 16px;
+}
 </style>
 </head>
 <body>
@@ -54,6 +61,11 @@ button:hover { background:#2e5f9e; }
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
 </header>
+
+<div class="stats">
+  <span id="totalDrinks">Total drinks made (24h): 0</span> |
+  <span id="avgTime">Average time per drink: 0 min</span>
+</div>
 
 <main>
   <div id="orders"></div>
@@ -69,7 +81,10 @@ import {
   onChildAdded,
   onChildChanged,
   update,
-  remove
+  remove,
+  query,
+  orderByChild,
+  get
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
 
@@ -84,25 +99,29 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const ordersRef = ref(db, "orders");
+const blockedRef = ref(db, "blocked_ips");
 const messaging = getMessaging(app);
 
 const ordersDiv = document.getElementById("orders");
 const bell = document.getElementById("bellSound");
+const totalDrinksEl = document.getElementById("totalDrinks");
+const avgTimeEl = document.getElementById("avgTime");
 
 let soundEnabled = false;
 let bellInterval = null;
 const spokenOrders = new Set();
+let blockedIPs = new Set();
 
-/* Enable sound & notifications */
+/* Enable notifications */
 document.getElementById("enableSound").addEventListener("click", async () => {
   try {
-    await bell.play(); // test bell
+    await bell.play();
     bell.pause();
     bell.currentTime = 0;
     soundEnabled = true;
     alert("Notifications enabled! 🔔");
 
-    // Request push permissions
     if ("Notification" in window && Notification.permission !== "granted") {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
@@ -112,12 +131,10 @@ document.getElementById("enableSound").addEventListener("click", async () => {
         console.log("Push token:", token);
       }
     }
-  } catch(e) {
-    console.error("Failed to enable notifications:", e);
-  }
+  } catch(e) { console.error(e); }
 });
 
-/* Play bell for new orders */
+/* Play bell */
 function startBell() {
   if (!soundEnabled || bellInterval) return;
   bell.currentTime = 0;
@@ -127,37 +144,65 @@ function startBell() {
     bell.play().catch(()=>{});
   }, 30000);
 }
+function stopBell() { clearInterval(bellInterval); bellInterval=null; }
 
-function stopBell() {
-  clearInterval(bellInterval);
-  bellInterval = null;
-}
-
-/* Speech for new orders */
+/* Speech */
 function speakNewOrder(name) {
   if (!soundEnabled || !window.speechSynthesis) return;
   if (spokenOrders.has(name)) return;
   spokenOrders.add(name);
-
   const msg = new SpeechSynthesisUtterance(`New order for ${name} has arrived!`);
-  msg.rate = 1; msg.pitch = 1; msg.volume = 1;
+  msg.rate=1; msg.pitch=1; msg.volume=1;
   window.speechSynthesis.speak(msg);
 }
 
-/* Add order to UI */
-function addOrder(order, key) {
-  const div = document.createElement("div");
-  div.id = key;
-  div.className = "order new-order";
+/* Load blocked IPs */
+async function loadBlockedIPs() {
+  const snapshot = await get(blockedRef);
+  if (snapshot.exists()) blockedIPs = new Set(Object.keys(snapshot.val()));
+}
+loadBlockedIPs();
 
-  div.innerHTML = `
+/* Update stats */
+async function updateStats() {
+  const snapshot = await get(ordersRef);
+  let total = 0, sumMinutes=0, count=0;
+  const now = Date.now();
+  if(snapshot.exists()){
+    Object.values(snapshot.val()).forEach(o=>{
+      if(o.fulfilled){
+        const ts = new Date(o.timestamp).getTime();
+        if(now - ts < 86400000) total++;
+        if(o.acknowledged && o.fulfilled){
+          const madeTime = new Date(o.fulfilledTime || o.timestamp).getTime();
+          const orderTime = ts;
+          sumMinutes += Math.max(0,(madeTime - orderTime)/60000);
+          count++;
+        }
+      }
+    });
+  }
+  totalDrinksEl.textContent = `Total drinks made (24h): ${total}`;
+  avgTimeEl.textContent = `Average time per drink: ${count>0? (sumMinutes/count).toFixed(1):0} min`;
+}
+
+/* Add order to DOM */
+function addOrder(order,key){
+  const div=document.createElement("div");
+  div.id=key;
+  div.className="order new-order";
+  const ipDisplay = order.ip || "N/A";
+  const isBlocked = blockedIPs.has(ipDisplay);
+  div.innerHTML=`
     <strong>Customer:</strong> ${order.customerName}<br>
     <strong>Drink:</strong> ${order.drink}<br>
-    <strong>Temperature:</strong> ${order.temperature}<br>
+    <strong>Temp:</strong> ${order.temperature}<br>
     <strong>Milk:</strong> ${order.milk}<br>
     <strong>Sweetener:</strong> ${order.sweetener}<br>
-    <strong>Time:</strong> ${order.displayTime || order.timestamp}<br>
+    <strong>Time:</strong> ${order.timestamp}<br>
+    <strong>IP:</strong> ${ipDisplay}<br>
     <button class="ackBtn">I'll make that now! 🛎️</button>
+    <button class="block-btn">${isBlocked?"Unblock IP":"Block IP"}</button>
     <button class="fulfillBtn deliver-btn">Delivered ✅</button>
   `;
   ordersDiv.prepend(div);
@@ -165,62 +210,74 @@ function addOrder(order, key) {
   startBell();
   speakNewOrder(order.customerName);
 
-  div.querySelector(".ackBtn").onclick = () => update(ref(db, `orders/${key}`), { acknowledged: true });
-  div.querySelector(".fulfillBtn").onclick = () => update(ref(db, `orders/${key}`), { fulfilled: true });
+  div.querySelector(".ackBtn").onclick = () => update(ref(db, `orders/${key}`), { acknowledged:true });
+  div.querySelector(".fulfillBtn").onclick = async () => {
+    const nowISO = new Date().toISOString();
+    await update(ref(db, `orders/${key}`), { fulfilled:true, fulfilledTime: nowISO });
+    updateStats();
+  };
+  div.querySelector(".block-btn").onclick = async (e)=>{
+    const ip = order.ip;
+    if(!ip) return alert("No IP available");
+    const path = ref(db, `blocked_ips/${ip}`);
+    if(blockedIPs.has(ip)){
+      await remove(path);
+      blockedIPs.delete(ip);
+      e.target.textContent="Block IP";
+    }else{
+      await update(path,true);
+      blockedIPs.add(ip);
+      e.target.textContent="Unblock IP";
+    }
+  };
 }
 
-/* Listen for new orders */
-onChildAdded(ref(db, "orders"), snap => addOrder(snap.val(), snap.key));
-
-/* Listen for updates */
-onChildChanged(ref(db, "orders"), snap => {
-  const order = snap.val();
-  const div = document.getElementById(snap.key);
-  if (!div) return;
-
-  if (order.acknowledged && !order.fulfilled) div.className = "order acknowledged";
-  if (order.fulfilled) {
-    div.className = "order fulfilled-order";
+/* Listen for orders */
+onChildAdded(ordersRef,snap=>{ addOrder(snap.val(),snap.key); updateStats(); });
+onChildChanged(ordersRef,snap=>{
+  const order=snap.val();
+  const div=document.getElementById(snap.key);
+  if(!div) return;
+  if(order.acknowledged && !order.fulfilled) div.className="order acknowledged";
+  if(order.fulfilled){
+    div.className="order fulfilled-order";
     div.querySelectorAll("button").forEach(b=>b.remove());
-    const check = document.createElement("span");
-    check.className = "fulfilled-check";
-    check.textContent = "✅";
+    const check=document.createElement("span");
+    check.className="fulfilled-check";
+    check.textContent="✅";
     div.appendChild(check);
+    updateStats();
     stopBell();
   }
 });
 
 /* Clear fulfilled */
-document.getElementById("clearFulfilled").addEventListener("click", () => {
-  if (!confirm("Clear all fulfilled orders?")) return;
-  document.querySelectorAll(".fulfilled-order").forEach(div => {
-    remove(ref(db, `orders/${div.id}`));
+document.getElementById("clearFulfilled").addEventListener("click",()=>{
+  if(!confirm("Clear all fulfilled orders?")) return;
+  document.querySelectorAll(".fulfilled-order").forEach(div=>{
+    remove(ref(db,`orders/${div.id}`));
     div.remove();
   });
+  updateStats();
 });
 
 /* Clear all */
-document.getElementById("clearAll").addEventListener("click", () => {
-  if (!confirm("⚠️ THIS WILL DELETE ALL ORDERS!")) return;
-  document.querySelectorAll(".order").forEach(div => {
-    remove(ref(db, `orders/${div.id}`));
+document.getElementById("clearAll").addEventListener("click",()=>{
+  if(!confirm("⚠️ THIS WILL DELETE ALL ORDERS! Are you sure?")) return;
+  document.querySelectorAll(".order").forEach(div=>{
+    remove(ref(db,`orders/${div.id}`));
     div.remove();
   });
+  updateStats();
 });
 
-/* Handle push messages while page is open */
-onMessage(messaging, payload => {
-  if (soundEnabled) {
-    bell.currentTime = 0;
-    bell.play().catch(()=>{});
+/* Push notifications */
+onMessage(messaging,payload=>{
+  if(soundEnabled){
+    bell.currentTime=0; bell.play().catch(()=>{});
   }
-  const notification = payload.notification;
-  if (notification) {
-    new Notification(notification.title || "New Order", {
-      body: notification.body || "",
-      icon: notification.icon || ""
-    });
-  }
+  const notif = payload.notification;
+  if(notif) new Notification(notif.title || "New Order",{ body:notif.body||"", icon:notif.icon||"" });
 });
 </script>
 
