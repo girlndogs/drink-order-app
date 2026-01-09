@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe – Order</title>
 
+<!-- ====== CSS ====== -->
 <style>
+/* General Styles */
 body {
   margin: 0;
   font-family: 'Segoe UI', sans-serif;
@@ -50,8 +52,10 @@ header img {
   box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 
-h3 {
-  margin-bottom: 8px;
+.card label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 6px;
   color: #3b4b75;
 }
 
@@ -90,6 +94,11 @@ footer {
   color: #2a3a59;
   font-style: italic;
 }
+
+/* Highlight invalid fields */
+input:invalid, select:invalid {
+  border-color: #e05c5c;
+}
 </style>
 </head>
 
@@ -103,20 +112,16 @@ footer {
 <div class="hero"></div>
 
 <div class="container">
-
+  <!-- Name -->
   <div class="card">
-    <h3>Your Name</h3>
-    <input
-      type="text"
-      id="customerName"
-      placeholder="Please enter your name (max 50 characters)"
-      maxlength="50"
-    >
+    <label for="customerName">Your Name</label>
+    <input type="text" id="customerName" name="customerName" placeholder="Please enter your name (max 50 characters)" maxlength="50" required>
   </div>
 
+  <!-- Drink -->
   <div class="card">
-    <h3>Select Drink</h3>
-    <select id="drink">
+    <label for="drink">Select Drink</label>
+    <select id="drink" required>
       <option value="" disabled selected>Please select a drink</option>
       <option value="milo & chai">🥛🍫 milo & chai</option>
       <option value="C's special">✨ C's special</option>
@@ -142,33 +147,35 @@ footer {
     </select>
   </div>
 
+  <!-- Temperature -->
   <div class="card">
-    <h3>Temperature</h3>
-    <select id="temperature">
+    <label for="temperature">Temperature</label>
+    <select id="temperature" required>
       <option value="" disabled selected>Please select</option>
       <option>SUPER Hot!</option>
       <option>Hot</option>
       <option>Warm</option>
       <option>Cool</option>
-      <option>Cold As</option>
+      <option>Cold</option>
     </select>
   </div>
 
+  <!-- Milk -->
   <div class="card">
-    <h3>Milk</h3>
-    <select id="milk">
+    <label for="milk">Milk</label>
+    <select id="milk" required>
       <option value="" disabled selected>Please select</option>
       <option>No Milk</option>
       <option>Full Cream</option>
       <option>Light/Skim</option>
-      <option>Oat</option>
       <option>Almond</option>
     </select>
   </div>
 
+  <!-- Sweetener -->
   <div class="card">
-    <h3>Sweetener</h3>
-    <select id="sweetener">
+    <label for="sweetener">Sweetener</label>
+    <select id="sweetener" required>
       <option value="" disabled selected>Please select</option>
       <option>None</option>
       <option>Honey</option>
@@ -178,17 +185,18 @@ footer {
 
   <button id="submitOrder" disabled>Place Order</button>
   <button id="leaveFeedback" style="margin-top:8px;">Leave Feedback ⭐</button>
-
 </div>
 
 <footer>
   We highly appreciate recommendations to make your next visit more relaxing and pleasant
 </footer>
 
+<!-- ====== JS ====== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+/* ===== Firebase Config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -203,26 +211,30 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const ordersRef = ref(db, "orders");
 
+/* ===== Form Elements ===== */
 const fields = ["customerName","drink","temperature","milk","sweetener"];
 const submitBtn = document.getElementById("submitOrder");
 const nameInput = document.getElementById("customerName");
-const NAME_LIMIT = 50;
 let clientIP = "";
 
-/* 🔒 Enforce 50 character limit */
-nameInput.addEventListener("input", () => {
-  if(nameInput.value.length > NAME_LIMIT) nameInput.value = nameInput.value.slice(0,NAME_LIMIT);
-  validateForm();
-});
-
-/* Validate all fields */
+/* ===== Form Validation ===== */
 function validateForm() {
-  const valid = fields.every(id => document.getElementById(id).value);
+  const valid = fields.every(id => document.getElementById(id).value.trim() !== "");
   submitBtn.disabled = !valid;
 }
-fields.forEach(id => document.getElementById(id).addEventListener("change",validateForm));
 
-/* Fetch client IP */
+fields.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("change", validateForm);
+  el.addEventListener("input", validateForm);
+});
+
+/* Enforce 50 char limit on name */
+nameInput.addEventListener("input", () => {
+  if(nameInput.value.length > 50) nameInput.value = nameInput.value.slice(0,50);
+});
+
+/* ===== Fetch Client IP (optional) ===== */
 async function fetchIP() {
   try {
     const res = await fetch('https://api.ipify.org?format=json');
@@ -234,29 +246,57 @@ async function fetchIP() {
 }
 fetchIP();
 
-/* Submit order */
-submitBtn.addEventListener("click", () => {
-  const order = {
-    customerName: nameInput.value.trim(),
-    drink: document.getElementById("drink").value,
-    temperature: document.getElementById("temperature").value,
-    milk: document.getElementById("milk").value,
-    sweetener: document.getElementById("sweetener").value,
-    timestamp: new Date().toISOString(),
-    fulfilled: false,
-    ip: clientIP
-  };
-  push(ordersRef, order).then(() => {
-    alert("Order placed!");
-    fields.forEach(id => document.getElementById(id).value="");
-    submitBtn.disabled=true;
+/* ===== Submit Order ===== */
+submitBtn.addEventListener("click", async () => {
+  const order = {};
+  fields.forEach(id => {
+    order[id] = document.getElementById(id).value.trim();
   });
+  order.timestamp = new Date().toISOString();
+  order.fulfilled = false;
+  order.ip = clientIP;
+
+  try {
+    await push(ordersRef, order);
+    showMessage("✅ Order placed successfully!");
+    resetForm();
+  } catch(e) {
+    console.error(e);
+    showMessage("⚠️ Failed to place order. Please try again.");
+  }
 });
 
-/* Feedback button */
+/* ===== Feedback Button ===== */
 document.getElementById("leaveFeedback").addEventListener("click", () => {
   window.location.href = "feedback.html";
 });
+
+/* ===== Helpers ===== */
+function resetForm() {
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    el.value = "";
+    if(el.tagName === "SELECT") el.selectedIndex = 0;
+  });
+  submitBtn.disabled = true;
+}
+
+function showMessage(msg) {
+  const tempDiv = document.createElement("div");
+  tempDiv.textContent = msg;
+  tempDiv.style.position = "fixed";
+  tempDiv.style.bottom = "16px";
+  tempDiv.style.left = "50%";
+  tempDiv.style.transform = "translateX(-50%)";
+  tempDiv.style.background = "#4a6fa5";
+  tempDiv.style.color = "#fff";
+  tempDiv.style.padding = "12px 20px";
+  tempDiv.style.borderRadius = "12px";
+  tempDiv.style.boxShadow = "0 3px 10px rgba(0,0,0,0.2)";
+  tempDiv.style.zIndex = 9999;
+  document.body.appendChild(tempDiv);
+  setTimeout(() => tempDiv.remove(), 3000);
+}
 </script>
 
 </body>
