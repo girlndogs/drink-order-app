@@ -3,98 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C&E's Cafe - Staff Orders</title>
+<title>C&E's Cafe – Staff Orders</title>
 
 <style>
-body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
-header {
-  background:#3f7fbf;
-  color:white;
-  text-align:center;
-  padding:15px;
-  position:relative;
-}
-header button { margin:5px; }
-
-main { padding:20px; max-width:800px; margin:auto; }
+body { font-family:Arial,sans-serif; background:#eef4fc; margin:0; }
+header { background:#3f7fbf; color:white; text-align:center; padding:15px; }
 
 .order {
-  border:1px solid #ccc;
+  background:white;
   padding:12px;
-  margin-bottom:12px;
   border-radius:6px;
-  position:relative;
+  margin-bottom:12px;
 }
 
-.new-order { background:#ffe6e6; }
-.acknowledged { background:#fff3cd; }
-.fulfilled-order { background:#e6f4ea; }
-
-.fulfilled-check {
-  position:absolute;
-  top:10px;
-  right:10px;
-  font-size:22px;
+.blocked-ip {
+  color:#c0392b;
+  font-weight:bold;
 }
 
-.deliver-btn {
-  position:absolute;
-  bottom:10px;
-  right:10px;
-}
-
-.clear-btn {
-  background:#c0392b;
-}
-.clear-btn:hover {
-  background:#a93226;
-}
-
-/* Feedback badge */
-.feedback-btn {
-  position:relative;
-}
-
-.badge {
-  position:absolute;
-  top:-6px;
-  right:-6px;
-  background:red;
+button {
+  margin-top:8px;
+  padding:6px 12px;
+  border:none;
+  border-radius:4px;
+  background:#3f7fbf;
   color:white;
-  font-size:12px;
-  border-radius:50%;
-  padding:2px 6px;
-  display:none;
+  cursor:pointer;
 }
+
+.block-btn { background:#c0392b; }
+.unblock-btn { background:#27ae60; }
 </style>
 </head>
 
 <body>
 
 <header>
-  <h1>C&E's Cafe - Staff Orders</h1>
-
-  <button id="enableSound">Enable Notifications 🔔</button>
-
-  <button class="feedback-btn" id="openFeedback">
-    View Feedback ⭐
-    <span class="badge" id="feedbackBadge">0</span>
-  </button>
-
-  <button id="clearFulfilled" class="clear-btn">
-    Clear Fulfilled 🗑️
-  </button>
-
-  <button id="clearAll" class="clear-btn">
-    ⚠️ Clear All Orders
-  </button>
+  <h1>Staff Orders</h1>
 </header>
 
-<main>
-  <div id="orders"></div>
-</main>
-
-<audio id="bellSound" src="bell.mp3" preload="auto"></audio>
+<main style="padding:20px;max-width:800px;margin:auto;" id="orders"></main>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -102,131 +50,59 @@ import {
   getDatabase,
   ref,
   onChildAdded,
-  onChildChanged,
   update,
-  remove
+  remove,
+  get
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
-  authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "drink-order-test",
-  messagingSenderId: "90936648282",
-  appId: "1:90936648282:web:b9854c3438319db80cae63"
+  projectId: "drink-order-test"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const ordersRef = ref(db, "orders");
-const feedbackRef = ref(db, "feedback");
+const blockedRef = ref(db, "blockedIPs");
 
 const ordersDiv = document.getElementById("orders");
-const bell = document.getElementById("bellSound");
 
-let soundEnabled = false;
-let feedbackCount = 0;
+onChildAdded(ordersRef, async snap => {
+  const o = snap.val();
+  const ip = o.ipAddress || "unknown";
 
-/* 🔔 Enable sound */
-document.getElementById("enableSound").onclick = () => {
-  bell.play().then(() => {
-    bell.pause();
-    bell.currentTime = 0;
-    soundEnabled = true;
-    alert("Notifications enabled!");
-  });
-};
+  const blocked = (await get(ref(db, `blockedIPs/${ip}`))).exists();
 
-/* ⭐ Feedback badge logic */
-const badge = document.getElementById("feedbackBadge");
-
-onChildAdded(feedbackRef, () => {
-  feedbackCount++;
-  badge.textContent = feedbackCount;
-  badge.style.display = "inline-block";
-});
-
-/* Open feedback page */
-document.getElementById("openFeedback").onclick = () => {
-  feedbackCount = 0;
-  badge.style.display = "none";
-  window.location.href = "staff-feedback.html";
-};
-
-/* Add order */
-function addOrder(order, key) {
   const div = document.createElement("div");
-  div.id = key;
-  div.className = "order new-order";
+  div.className = "order";
 
   div.innerHTML = `
-    <strong>${order.customerName}</strong><br>
-    ${order.drink} – ${order.temperature}<br>
-    Milk: ${order.milk}, Sweetener: ${order.sweetener}<br>
-    <em>${order.displayTime || new Date(order.timestamp).toLocaleString()}</em><br>
-    <button class="ackBtn">Making</button>
-    <button class="fulfillBtn deliver-btn">Delivered</button>
+    <strong>${o.customerName}</strong><br>
+    ${o.drink}<br>
+    IP: <span class="${blocked ? "blocked-ip" : ""}">${ip}</span><br>
+    <button class="${blocked ? "unblock-btn" : "block-btn"}">
+      ${blocked ? "Unblock IP" : "Block IP"}
+    </button>
   `;
 
+  div.querySelector("button").onclick = () => {
+    if (blocked) {
+      remove(ref(db, `blockedIPs/${ip}`));
+      alert("IP unblocked");
+    } else {
+      update(ref(db, `blockedIPs/${ip}`), {
+        blocked: true,
+        blockedAt: Date.now()
+      });
+      alert("IP blocked");
+    }
+    location.reload();
+  };
+
   ordersDiv.prepend(div);
-
-  if (soundEnabled && !order.acknowledged && !order.fulfilled) {
-    bell.currentTime = 0;
-    bell.play().catch(()=>{});
-  }
-
-  div.querySelector(".ackBtn").onclick = () => {
-    update(ref(db, `orders/${key}`), { acknowledged: true });
-  };
-
-  div.querySelector(".fulfillBtn").onclick = () => {
-    update(ref(db, `orders/${key}`), { fulfilled: true });
-  };
-}
-
-/* Order listeners */
-onChildAdded(ordersRef, snap => {
-  addOrder(snap.val(), snap.key);
 });
-
-onChildChanged(ordersRef, snap => {
-  const div = document.getElementById(snap.key);
-  const order = snap.val();
-  if (!div) return;
-
-  if (order.acknowledged && !order.fulfilled) {
-    div.className = "order acknowledged";
-  }
-
-  if (order.fulfilled) {
-    div.className = "order fulfilled-order";
-    div.querySelectorAll("button").forEach(b => b.remove());
-    const check = document.createElement("span");
-    check.className = "fulfilled-check";
-    check.textContent = "✅";
-    div.appendChild(check);
-  }
-});
-
-/* 🗑️ Clear fulfilled */
-document.getElementById("clearFulfilled").onclick = () => {
-  if (!confirm("Clear all fulfilled orders?")) return;
-  document.querySelectorAll(".fulfilled-order").forEach(div => {
-    remove(ref(db, `orders/${div.id}`));
-    div.remove();
-  });
-};
-
-/* ⚠️ Clear ALL */
-document.getElementById("clearAll").onclick = () => {
-  if (!confirm("⚠️ This will delete ALL orders. Are you sure?")) return;
-  document.querySelectorAll(".order").forEach(div => {
-    remove(ref(db, `orders/${div.id}`));
-    div.remove();
-  });
-};
 </script>
 
 </body>
