@@ -4,129 +4,62 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C&E's Cafe – Order</title>
-
 <style>
-body {
-  margin:0;
-  font-family:'Segoe UI',sans-serif;
-  background:#f0f4fa;
-  color:#2a3a59;
-}
-
-header {
-  background:#4a6fa5;
-  color:white;
-  text-align:center;
-  padding:16px;
-}
-
-.hero {
-  width:100%;
-  height:160px;
-  background-image:url("https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg");
-  background-size:cover;
-  background-position:center;
-}
-
-.container {
-  max-width:480px;
-  margin:auto;
-  padding:16px;
-}
-
-.card {
-  background:white;
-  padding:16px;
-  border-radius:12px;
-  margin-bottom:14px;
-  box-shadow:0 3px 10px rgba(0,0,0,.08);
-}
-
-h3 { margin-bottom:8px; }
-
-input, select, button {
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #aac4e0;
-  font-size:16px;
-}
-
-button {
-  background:#4a6fa5;
-  color:white;
-  font-weight:bold;
-  border:none;
-  margin-top:10px;
-  cursor:pointer;
-  transition: background 0.3s ease;
-}
-
-button:disabled {
-  background:#9bb0d0;
-  cursor:not-allowed;
-}
-
-button.review-btn {
-  background:#2a9d8f;
-}
-
-button.review-btn:hover {
-  background:#21867a;
-}
-
-.blocked {
-  background:#ffe6e6;
-  padding:16px;
-  border-radius:12px;
-  text-align:center;
-  color:#a93226;
-  font-weight:bold;
-}
+body { margin:0; font-family:'Segoe UI',sans-serif; background:#f0f4fa; color:#2a3a59; }
+header { background:#4a6fa5; color:white; text-align:center; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+header img { width:100px; border-radius:12px; margin-bottom:8px; }
+.hero { width:100%; height:160px; background-image:url("https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg"); background-size:cover; background-position:center; border-bottom:4px solid #4a6fa5; }
+.container { padding:16px; max-width:480px; margin:auto; }
+.card { background:white; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(0,0,0,0.08); }
+h3 { margin-bottom:8px; color:#3b4b75; }
+input, select, button { width:100%; padding:12px; border-radius:10px; border:1px solid #aac4e0; font-size:16px; box-sizing:border-box; }
+select option[disabled] { color:#99a9c5; }
+button { background:#4a6fa5; color:white; font-weight:bold; border:none; margin-top:10px; cursor:pointer; transition:background 0.3s ease; }
+button:disabled { background:#9bb0d0; cursor:not-allowed; }
+footer { margin-top:16px; text-align:center; font-size:14px; color:#2a3a59; font-style:italic; }
 </style>
 </head>
-
 <body>
 
 <header>
+  <img src="https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg" alt="Cafe Logo">
   <h2>C&E's Cafe</h2>
 </header>
 
 <div class="hero"></div>
 
 <div class="container">
-  <div id="blockNotice"></div>
 
   <div class="card">
     <h3>Your Name</h3>
-    <input id="customerName" maxlength="50" placeholder="Enter your name">
+    <input type="text" id="customerName" placeholder="Please enter your name (max 50 characters)" maxlength="50">
   </div>
 
   <div class="card">
     <h3>Select Drink</h3>
     <select id="drink">
       <option value="" disabled selected>Please select a drink</option>
-      <option value="milo & chai">🥛🍫 Milo & Chai</option>
-      <option value="C's special">✨ C's Special</option>
-      <option value="E's special">🌟 E's Special</option>
-      <option value="megacandy">🍬 Megacandy</option>
-      <option value="matcha & milo">🍵🥛 Matcha & Milo</option>
-      <option value="black tea">🫖 Black Tea</option>
-      <option value="green tea">🍃 Green Tea</option>
-      <option value="lemonginger">🍋🫚 Lemonginger</option>
-      <option value="peaceful pause">☁️ Peaceful Pause</option>
-      <option value="coffee">☕ Coffee</option>
-      <option value="blackcurrant">🫐 Blackcurrant</option>
-      <option value="apple cider">🍎 Apple Cider</option>
-      <option value="raspberry shrub">🍓 Raspberry Shrub</option>
-      <option value="soda water">💧 Soda Water</option>
-      <option value="matcha strawberry">🍵🍓 Matcha Strawberry</option>
-      <option value="matcha plain">🍵 Matcha Plain</option>
-      <option value="milo pro">🥛🍫 Milo Pro</option>
-      <option value="milo plain">🥛 Milo Plain</option>
+      <option value="water">💧 Water</option>
+      <option value="milo & chai">🥛🍫 milo & chai</option>
+      <option value="C's special">✨ C's special</option>
+      <option value="E's special">🌟 E's special</option>
+      <option value="megacandy">🍬 megacandy</option>
+      <option value="matcha & milo">🍵🥛 matcha & milo</option>
+      <option value="black tea">🫖 black tea</option>
+      <option value="green tea">🍃 green tea</option>
+      <option value="lemonginger">🍋🫚 lemonginger</option>
+      <option value="peaceful pause">☁️ peaceful pause</option>
+      <option value="coffee">☕ coffee</option>
+      <option value="blackcurrant">🫐 blackcurrant</option>
+      <option value="apple cider">🍎 apple cider</option>
+      <option value="raspberry shrub">🍓 raspberry shrub</option>
+      <option value="soda water">💧 soda water</option>
+      <option value="matcha strawberry">🍵🍓 matcha strawberry</option>
+      <option value="matcha plain">🍵 matcha plain</option>
+      <option value="milo pro">🥛🍫 milo pro</option>
+      <option value="milo plain">🥛 milo plain</option>
       <option value="Vanilla Chai">🌿 Vanilla Chai</option>
       <option value="Spice Chai">🌶️ Spice Chai</option>
-      <option value="water">💧 Water</option>
     </select>
   </div>
 
@@ -164,91 +97,74 @@ button.review-btn:hover {
     </select>
   </div>
 
-  <button id="submit" disabled>Place Order</button>
-  <button class="review-btn" onclick="window.location.href='feedback.html'">Leave Feedback / Review ⭐</button>
+  <button id="submitOrder" disabled>Place Order</button>
+  <button id="leaveFeedback" onclick="location.href='feedback.html';">Leave Feedback ⭐</button>
 </div>
+
+<footer>
+  We highly appreciate recommendations to make your next visit more relaxing and pleasant
+</footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "drink-order-test"
+  projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebaseappdestorage.app",
+  messagingSenderId: "90936648282",
+  appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const ordersRef = ref(db, "orders");
 
 const fields = ["customerName","drink","temperature","milk","sweetener"];
-const submitBtn = document.getElementById("submit");
-const blockNotice = document.getElementById("blockNotice");
+const submitBtn = document.getElementById("submitOrder");
+const nameInput = document.getElementById("customerName");
+const NAME_LIMIT = 50;
 
-let clientIP = "unknown";
-let isBlocked = false;
+nameInput.addEventListener("input",()=>{ 
+  if(nameInput.value.length>NAME_LIMIT) nameInput.value=nameInput.value.slice(0,NAME_LIMIT); 
+  validateForm();
+});
 
-/* Validate form */
 function validateForm() {
-  if (isBlocked) {
-    submitBtn.disabled = true;
-    return;
-  }
-  const valid = fields.every(id => {
-    const v = document.getElementById(id).value;
-    return v && v.trim();
-  });
+  const valid = fields.every(id => document.getElementById(id).value);
   submitBtn.disabled = !valid;
 }
 
-fields.forEach(id => {
-  document.getElementById(id).addEventListener("input", validateForm);
-  document.getElementById(id).addEventListener("change", validateForm);
-});
+fields.forEach(id => document.getElementById(id).addEventListener("change", validateForm));
 
-/* Fetch IP asynchronously */
-fetch("https://api.ipify.org?format=json")
-  .then(r => r.json())
-  .then(data => {
-    clientIP = data.ip;
+submitBtn.addEventListener("click", async () => {
+  let ip = "N/A";
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    ip = data.ip || "N/A";
+  } catch(e){ console.warn("IP fetch failed", e); }
 
-    return get(ref(db, `blockedIPs/${clientIP}`));
-  })
-  .then(snap => {
-    if (snap.exists()) {
-      isBlocked = true;
-      blockNotice.innerHTML = `
-        <div class="blocked">
-          🚫 Ordering from this device has been blocked.<br>
-          Please speak to staff.
-        </div>
-      `;
-      submitBtn.disabled = true;
-    }
-  })
-  .catch(() => {
-    clientIP = "unknown";
-  });
-
-/* Submit */
-submitBtn.onclick = () => {
-  push(ref(db, "orders"), {
+  const order = {
     customerName: customerName.value.trim(),
     drink: drink.value,
     temperature: temperature.value,
     milk: milk.value,
     sweetener: sweetener.value,
-    ipAddress: clientIP,
-    timestamp: Date.now(),
-    displayTime: new Date().toLocaleString(),
-    fulfilled: false
-  }).then(() => {
-    alert("Order placed! ☕");
-    location.reload();
-  }).catch(() => {
-    alert("Order failed. Please try again.");
+    timestamp: new Date().toISOString(),
+    fulfilled: false,
+    ip
+  };
+
+  push(ordersRef, order).then(()=>{
+    alert("Order placed!");
+    fields.forEach(id=>document.getElementById(id).value="");
+    submitBtn.disabled=true;
   });
-};
+});
 </script>
 
 </body>
