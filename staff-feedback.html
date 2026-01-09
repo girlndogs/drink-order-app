@@ -44,10 +44,25 @@ main {
   padding:14px;
   border-radius:6px;
   margin-bottom:12px;
+  position: relative;
 }
 
 .stars { color:#f5b301; font-size:18px; }
 .time { font-size:12px; color:#666; }
+.ip { font-size:12px; color:#999; margin-top:4px; }
+.deleteBtn {
+  position: absolute;
+  top:12px;
+  right:12px;
+  background:#ff5c5c;
+  color:white;
+  border:none;
+  border-radius:4px;
+  padding:4px 8px;
+  cursor:pointer;
+  font-size:12px;
+}
+.deleteBtn:hover { background:#ff2c2c; }
 </style>
 </head>
 
@@ -71,11 +86,7 @@ main {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  onChildAdded
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 /* Firebase config */
 const firebaseConfig = {
@@ -83,13 +94,14 @@ const firebaseConfig = {
   authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "drink-order-test",
+  storageBucket: "drink-order-test.firebaseappdestorage.app",
   messagingSenderId: "90936648282",
   appId: "1:90936648282:web:b9854c3438319db80cae63"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const feedbackRef = ref(db, "feedback");
+const feedbackRef = ref(db, "reviews"); // <-- match the refined feedback page
 
 const list = document.getElementById("feedbackList");
 const avgEl = document.getElementById("average");
@@ -104,7 +116,7 @@ function stars(r) {
 
 onChildAdded(feedbackRef, snap => {
   const f = snap.val();
-  if (!f || !f.rating) return;
+  if (!f || typeof f.rating !== "number") return;
 
   totalStars += f.rating;
   totalCount++;
@@ -116,11 +128,27 @@ onChildAdded(feedbackRef, snap => {
   div.className = "feedback";
 
   div.innerHTML = `
-    <strong>${f.name || "Anonymous"}</strong><br>
+    <strong>${f.name || "Anonymous"}</strong>
     <div class="stars">${stars(f.rating)}</div>
     <div>${f.comment || "<em>No comment</em>"}</div>
+    <div class="ip">IP: ${f.ip || "Unknown"}</div>
     <div class="time">${new Date(f.timestamp).toLocaleString()}</div>
+    <button class="deleteBtn">Delete</button>
   `;
+
+  // Delete button functionality
+  const deleteBtn = div.querySelector(".deleteBtn");
+  deleteBtn.addEventListener("click", () => {
+    if(confirm("Are you sure you want to delete this feedback?")) {
+      remove(ref(db, `reviews/${snap.key}`)).then(() => {
+        div.remove();
+        totalStars -= f.rating;
+        totalCount--;
+        avgEl.textContent = totalCount ? (totalStars / totalCount).toFixed(1) : "—";
+        countEl.textContent = totalCount ? `${totalCount} review${totalCount > 1 ? "s" : ""}` : "No feedback yet";
+      });
+    }
+  });
 
   list.prepend(div);
 });
