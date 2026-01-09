@@ -82,52 +82,9 @@ button:disabled {
 
 <div class="hero"></div>
 
-<div class="container" id="app"></div>
+<div class="container">
+  <div id="blockNotice"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  get
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
-  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "drink-order-test"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const appDiv = document.getElementById("app");
-
-async function getIP() {
-  try {
-    const r = await fetch("https://api.ipify.org?format=json");
-    return (await r.json()).ip;
-  } catch {
-    return "unknown";
-  }
-}
-
-const ip = await getIP();
-
-/* Block check */
-const blockedSnap = await get(ref(db, `blockedIPs/${ip}`));
-if (blockedSnap.exists()) {
-  appDiv.innerHTML = `
-    <div class="blocked">
-      🚫 Ordering from this device has been blocked.<br>
-      Please speak to staff.
-    </div>
-  `;
-  throw new Error("Blocked");
-}
-
-/* Render full form */
-appDiv.innerHTML = `
   <div class="card">
     <h3>Your Name</h3>
     <input id="customerName" maxlength="50" placeholder="Enter your name">
@@ -176,39 +133,88 @@ appDiv.innerHTML = `
   </div>
 
   <button id="submit" disabled>Place Order</button>
-`;
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "drink-order-test"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 const fields = ["customerName","drink","temperature","milk","sweetener"];
-const submit = document.getElementById("submit");
+const submitBtn = document.getElementById("submit");
+const blockNotice = document.getElementById("blockNotice");
 
-function validate() {
-  const ok = fields.every(id => {
+let clientIP = "unknown";
+let isBlocked = false;
+
+/* Validate form */
+function validateForm() {
+  if (isBlocked) {
+    submitBtn.disabled = true;
+    return;
+  }
+  const valid = fields.every(id => {
     const v = document.getElementById(id).value;
     return v && v.trim();
   });
-  submit.disabled = !ok;
+  submitBtn.disabled = !valid;
 }
 
 fields.forEach(id => {
-  document.getElementById(id).addEventListener("input", validate);
-  document.getElementById(id).addEventListener("change", validate);
+  document.getElementById(id).addEventListener("input", validateForm);
+  document.getElementById(id).addEventListener("change", validateForm);
 });
 
-submit.onclick = () => {
-  push(ref(db,"orders"), {
+/* Fetch IP asynchronously */
+fetch("https://api.ipify.org?format=json")
+  .then(r => r.json())
+  .then(data => {
+    clientIP = data.ip;
+
+    return get(ref(db, `blockedIPs/${clientIP}`));
+  })
+  .then(snap => {
+    if (snap.exists()) {
+      isBlocked = true;
+      blockNotice.innerHTML = `
+        <div class="blocked">
+          🚫 Ordering from this device has been blocked.<br>
+          Please speak to staff.
+        </div>
+      `;
+      submitBtn.disabled = true;
+    }
+  })
+  .catch(() => {
+    clientIP = "unknown";
+  });
+
+/* Submit */
+submitBtn.onclick = () => {
+  push(ref(db, "orders"), {
     customerName: customerName.value.trim(),
     drink: drink.value,
     temperature: temperature.value,
     milk: milk.value,
     sweetener: sweetener.value,
-    ipAddress: ip,
+    ipAddress: clientIP,
     timestamp: Date.now(),
     displayTime: new Date().toLocaleString(),
     fulfilled: false
   }).then(() => {
     alert("Order placed! ☕");
     location.reload();
-  }).catch(() => alert("Order failed"));
+  }).catch(() => {
+    alert("Order failed. Please try again.");
+  });
 };
 </script>
 
