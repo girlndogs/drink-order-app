@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C&E's Cafe – Feedback Viewer</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #eef4fc;
+}
+
+header {
+  background: #3f7fbf;
+  color: white;
+  text-align: center;
+  padding: 16px;
+}
+
+main {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
+
+.stats {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stats h2 {
+  margin: 0;
+}
+
+.feedback {
+  background: white;
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.stars {
+  color: #f5b301;
+  font-size: 18px;
+}
+
+.name {
+  font-weight: bold;
+}
+
+.time {
+  font-size: 12px;
+  color: #666;
+}
+
+.comment {
+  margin-top: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>C&E's Cafe – Customer Feedback</h1>
+</header>
+
+<main>
+
+  <div class="stats">
+    <h2>
+      Average Rating:
+      <span id="average">—</span> ⭐
+    </h2>
+    <p id="count">No feedback yet</p>
+  </div>
+
+  <div id="feedbackList"></div>
+
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  onChildAdded
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+/* Firebase config */
+const firebaseConfig = {
+  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
+  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "drink-order-test",
+  messagingSenderId: "90936648282",
+  appId: "1:90936648282:web:b9854c3438319db80cae63"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const feedbackRef = ref(db, "feedback");
+
+const list = document.getElementById("feedbackList");
+const avgEl = document.getElementById("average");
+const countEl = document.getElementById("count");
+
+let totalStars = 0;
+let totalCount = 0;
+
+/* Render stars */
+function renderStars(rating) {
+  return "★".repeat(rating) + "☆".repeat(5 - rating);
+}
+
+/* Listen for feedback */
+onChildAdded(feedbackRef, snap => {
+  const data = snap.val();
+  if (!data || !data.rating) return;
+
+  totalStars += data.rating;
+  totalCount++;
+
+  avgEl.textContent = (totalStars / totalCount).toFixed(1);
+  countEl.textContent = `${totalCount} review${totalCount > 1 ? "s" : ""}`;
+
+  const div = document.createElement("div");
+  div.className = "feedback";
+
+  div.innerHTML = `
+    <div class="name">${data.name || "Anonymous"}</div>
+    <div class="stars">${renderStars(data.rating)}</div>
+    <div class="comment">${data.comment || "<em>No comment</em>"}</div>
+    <div class="time">${new Date(data.timestamp).toLocaleString()}</div>
+  `;
+
+  list.prepend(div);
+});
+</script>
+
+</body>
+</html>
