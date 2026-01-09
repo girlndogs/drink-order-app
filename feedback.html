@@ -1,168 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Café Feedback</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C&E's Cafe – Feedback</title>
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f6f6;
-      margin: 0;
-      padding: 0;
-    }
+<style>
+body { font-family:'Segoe UI',sans-serif; background:#f0f4fa; margin:0; }
+header { background:#4a6fa5; color:white; text-align:center; padding:16px; }
+.container { max-width:480px; margin:auto; padding:16px; }
+.card { background:white; border-radius:12px; padding:16px; box-shadow:0 3px 10px rgba(0,0,0,0.1); }
 
-    .container {
-      max-width: 520px;
-      margin: 40px auto;
-      background: #ffffff;
-      padding: 24px;
-      border-radius: 10px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    }
+.stars { display:flex; justify-content:center; font-size:32px; gap:10px; cursor:pointer; }
+.stars span { color:#ccc; }
+.stars span.active { color:#f5b301; }
 
-    h1 {
-      margin-top: 0;
-      font-size: 1.6rem;
-      text-align: center;
-    }
+input, textarea, button {
+  width:100%;
+  margin-top:12px;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #aac4e0;
+  font-size:16px;
+}
 
-    p.subtitle {
-      text-align: center;
-      color: #666;
-      margin-bottom: 24px;
-    }
-
-    label {
-      display: block;
-      margin-top: 16px;
-      font-weight: 600;
-    }
-
-    input,
-    textarea,
-    select {
-      width: 100%;
-      margin-top: 6px;
-      padding: 10px;
-      font-size: 1rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    .rating {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .rating input {
-      display: none;
-    }
-
-    .rating label {
-      font-size: 1.8rem;
-      cursor: pointer;
-      color: #ccc;
-    }
-
-    .rating input:checked ~ label,
-    .rating label:hover,
-    .rating label:hover ~ label {
-      color: #f5b301;
-    }
-
-    button {
-      width: 100%;
-      margin-top: 24px;
-      padding: 14px;
-      font-size: 1.1rem;
-      background: #2c7a7b;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #246a6b;
-    }
-
-    footer {
-      margin-top: 16px;
-      font-size: 0.85rem;
-      text-align: center;
-      color: #888;
-    }
-  </style>
+button {
+  background:#4a6fa5;
+  color:white;
+  border:none;
+  font-weight:bold;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
-  <div class="container">
-    <h1>We’d Love Your Feedback ☕</h1>
-    <p class="subtitle">Help us make your next visit even better</p>
 
-    <form id="feedbackForm">
-      <label for="name">Your Name (optional)</label>
-      <input type="text" id="name" name="name" />
+<header>
+  <h2>Leave Feedback ⭐</h2>
+</header>
 
-      <label for="email">Email (optional)</label>
-      <input type="email" id="email" name="email" />
-
-      <label>How was your experience?</label>
-      <div class="rating">
-        <input type="radio" id="star5" name="rating" value="5" required />
-        <label for="star5">★</label>
-
-        <input type="radio" id="star4" name="rating" value="4" />
-        <label for="star4">★</label>
-
-        <input type="radio" id="star3" name="rating" value="3" />
-        <label for="star3">★</label>
-
-        <input type="radio" id="star2" name="rating" value="2" />
-        <label for="star2">★</label>
-
-        <input type="radio" id="star1" name="rating" value="1" />
-        <label for="star1">★</label>
-      </div>
-
-      <label for="visitType">Visit Type</label>
-      <select id="visitType" name="visitType" required>
-        <option value="">Select one</option>
-        <option value="dine-in">Dine In</option>
-        <option value="takeaway">Takeaway</option>
-      </select>
-
-      <label for="order">What did you order?</label>
-      <input type="text" id="order" name="order" />
-
-      <label for="comments">Your Feedback</label>
-      <textarea id="comments" name="comments" required></textarea>
-
-      <button type="submit">Submit Feedback</button>
-    </form>
-
-    <footer>
-      Thank you for supporting our café ❤️
-    </footer>
+<div class="container">
+  <div class="card">
+    <input id="name" placeholder="Your name (optional)">
+    <div class="stars">
+      <span data-value="1">★</span>
+      <span data-value="2">★</span>
+      <span data-value="3">★</span>
+      <span data-value="4">★</span>
+      <span data-value="5">★</span>
+    </div>
+    <textarea id="comment" rows="4" placeholder="Comments (optional)"></textarea>
+    <button id="submit" disabled>Submit Feedback</button>
   </div>
+</div>
 
-  <script>
-    document.getElementById("feedbackForm").addEventListener("submit", function (e) {
-      e.preventDefault();
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-      alert("Thank you for your feedback!");
+const firebaseConfig = {
+  apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
+  authDomain: "drink-order-test.firebaseapp.com",
+  databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "drink-order-test",
+  messagingSenderId: "90936648282",
+  appId: "1:90936648282:web:b9854c3438319db80cae63"
+};
 
-      this.reset();
-    });
-  </script>
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const feedbackRef = ref(db, "feedback");
+
+let rating = 0;
+const stars = document.querySelectorAll(".stars span");
+const submitBtn = document.getElementById("submit");
+
+stars.forEach(star => {
+  star.onclick = () => {
+    rating = Number(star.dataset.value);
+    stars.forEach(s => s.classList.toggle("active", s.dataset.value <= rating));
+    submitBtn.disabled = false;
+  };
+});
+
+submitBtn.onclick = () => {
+  push(feedbackRef, {
+    name: document.getElementById("name").value.trim(),
+    rating,
+    comment: document.getElementById("comment").value.trim(),
+    timestamp: Date.now()
+  }).then(() => {
+    alert("Thanks for your feedback!");
+    window.location.href = "index.html";
+  });
+};
+</script>
+
 </body>
 </html>
