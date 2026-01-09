@@ -24,6 +24,8 @@ button:hover { background:#2e5f9e; }
 .stats { margin-bottom:12px; padding:10px; background:#dce8f7; border-radius:6px; font-weight:bold; }
 .feedback-btn { background:#27ae60; }
 .feedback-btn:hover { background:#1e8449; }
+.blocked-section { background:#f9d6d5; padding:10px; border-radius:6px; margin-bottom:12px; }
+.blocked-section button { margin-left:8px; }
 </style>
 </head>
 <body>
@@ -34,6 +36,7 @@ button:hover { background:#2e5f9e; }
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
   <button id="viewFeedback" class="feedback-btn">📋 View Feedback</button>
+  <button id="manageBlockedIPs" class="feedback-btn">🚫 Manage Blocked IPs</button>
 </header>
 
 <main>
@@ -41,6 +44,13 @@ button:hover { background:#2e5f9e; }
     Drinks made in last 24h: <span id="drinksMade">0</span> |
     Average make time: <span id="avgTime">N/A</span>
   </div>
+
+  <div id="blockedIPsSection" class="blocked-section" style="display:none;">
+    <strong>Blocked IPs:</strong>
+    <div id="blockedIPsList"></div>
+    <button id="unblockAll">Unblock All</button>
+  </div>
+
   <div id="orders"></div>
 </main>
 
@@ -76,22 +86,34 @@ const avgTimeEl = document.getElementById("avgTime");
 let soundEnabled = false;
 let bellInterval = null;
 const spokenOrders = new Set(); // prevent repeat speech
-const blockedIPs = new Set();
+let blockedIPs = new Set();
 
 /* Enable sound and speech after user click */
 document.getElementById("enableSound").addEventListener("click", async () => {
-  try {
-    await bell.play(); 
-    bell.pause(); 
-    bell.currentTime=0; 
-    soundEnabled=true; 
-    alert("Notifications enabled!");
-  } catch(e){ console.log("User interaction required for audio:", e);}
+  try { await bell.play(); bell.pause(); bell.currentTime=0; soundEnabled=true; alert("Notifications enabled!"); }
+  catch(e){ console.log("User interaction required for audio:", e);}
 });
 
-/* Feedback button navigation */
+/* Feedback navigation */
 document.getElementById("viewFeedback").addEventListener("click", () => {
   window.location.href = "feedback.html";
+});
+
+/* Show/hide blocked IPs section */
+const blockedSection = document.getElementById("blockedIPsSection");
+const blockedListEl = document.getElementById("blockedIPsList");
+document.getElementById("manageBlockedIPs").addEventListener("click", () => {
+  blockedSection.style.display = blockedSection.style.display === "none" ? "block" : "none";
+  renderBlockedIPs();
+});
+
+/* Unblock all button */
+document.getElementById("unblockAll").addEventListener("click", () => {
+  if(confirm("Unblock all IPs?")){
+    blockedIPs.clear();
+    renderBlockedIPs();
+    alert("All IPs unblocked");
+  }
 });
 
 /* Bell logic */
@@ -110,8 +132,24 @@ function speakNewOrder(name) {
   window.speechSynthesis.speak(msg);
 }
 
+/* Render blocked IPs list */
+function renderBlockedIPs() {
+  blockedListEl.innerHTML = "";
+  if(blockedIPs.size===0){ blockedListEl.textContent="None"; return; }
+  blockedIPs.forEach(ip=>{
+    const div = document.createElement("div");
+    div.textContent = ip;
+    const btn = document.createElement("button");
+    btn.textContent="Unblock";
+    btn.onclick = () => { blockedIPs.delete(ip); renderBlockedIPs(); };
+    div.appendChild(btn);
+    blockedListEl.appendChild(div);
+  });
+}
+
 /* Add order element */
 function addOrder(order,key){
+  if(blockedIPs.has(order.ip)) return; // skip blocked IP orders
   const orderDiv = document.createElement("div");
   orderDiv.id = key;
   orderDiv.className = "order new-order";
@@ -140,8 +178,8 @@ function addOrder(order,key){
   orderDiv.querySelector(".blockIPBtn").onclick = () => {
     if(order.ip && confirm(`Block IP ${order.ip}?`)){
       blockedIPs.add(order.ip);
-      alert(`${order.ip} blocked`);
-      orderDiv.style.opacity = "0.5";
+      renderBlockedIPs();
+      orderDiv.style.opacity="0.5";
     }
   };
 }
