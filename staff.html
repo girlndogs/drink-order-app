@@ -19,10 +19,11 @@ button:hover { background:#2e5f9e; }
 .clear-btn { background:#c0392b; }
 .clear-btn:hover { background:#a93226; }
 .deliver-btn { position:absolute; bottom:10px; right:10px; }
-.feedback-btn { position:absolute; bottom:10px; left:10px; background:#f39c12; }
+.feedback-btn, .blocked-btn { position:fixed; bottom:20px; left:20px; background:#f39c12; }
+.feedback-btn { left:20px; }
+.blocked-btn { left:180px; background:#e74c3c; }
 .feedback-btn:hover { background:#d68910; }
-.block-btn { position:absolute; bottom:10px; left:140px; background:#e74c3c; }
-.block-btn:hover { background:#c0392b; }
+.blocked-btn:hover { background:#c0392b; }
 .stats { margin:10px 0; font-weight:bold; }
 </style>
 </head>
@@ -31,7 +32,6 @@ button:hover { background:#2e5f9e; }
 <header>
   <h1>C&E's Cafe - Staff Orders</h1>
   <button id="enableSound">Enable Notifications 🔔</button>
-  <button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
   <button id="clearFulfilled" class="clear-btn">Clear Fulfilled Orders 🗑️</button>
   <button id="clearAll" class="clear-btn">⚠️ Clear All Orders</button>
   <div class="stats">
@@ -43,6 +43,10 @@ button:hover { background:#2e5f9e; }
 <main>
   <div id="orders"></div>
 </main>
+
+<!-- Footer buttons -->
+<button id="viewFeedback" class="feedback-btn">View Feedback 📝</button>
+<button id="viewBlocked" class="blocked-btn">View Blocked IPs 🚫</button>
 
 <audio id="bellSound" src="bell.mp3" preload="auto"></audio>
 
@@ -80,7 +84,12 @@ document.getElementById("enableSound").addEventListener("click", () => {
 
 // Navigate to feedback viewer
 document.getElementById("viewFeedback").addEventListener("click", () => {
-  window.location.href = "staff_feedback.html";
+  window.location.href = "staff-feedback.html"; // corrected URL
+});
+
+// Navigate to blocked IP page (placeholder)
+document.getElementById("viewBlocked").addEventListener("click", () => {
+  window.location.href = "blocked_ips.html"; // new page to be created
 });
 
 // Bell function (only rings for unacknowledged orders)
@@ -106,7 +115,6 @@ function speakNewOrder(name) {
   spokenOrders.add(name);
 
   const msg = new SpeechSynthesisUtterance(`Hey! A new order for ${name} has arrived.`);
-  // Select a female voice if available
   const voices = window.speechSynthesis.getVoices();
   msg.voice = voices.find(v => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("zira")) || voices[0];
   msg.pitch = 1.2;
@@ -144,7 +152,7 @@ function addOrder(order,key) {
   orderDiv.querySelector(".fulfillBtn").onclick = async ()=> {
     const deliveredAt = new Date().toISOString();
     await update(ref(db,`orders/${key}`),{fulfilled:true, deliveredAt});
-    updateStats(); // Refresh stats after delivery
+    updateStats(); 
   };
   orderDiv.querySelector(".blockBtn").onclick = ()=>{
     if(confirm(`Block IP ${order.ip}?`)) {
@@ -169,7 +177,7 @@ onChildChanged(ordersRef,snap=>{
     check.className="fulfilled-check"; check.textContent="✅";
     div.appendChild(check);
   }
-  startBell(); // check if bell should ring
+  startBell(); 
 });
 
 // Clear fulfilled
@@ -205,7 +213,7 @@ async function updateStats() {
       count++;
       const start = new Date(o.timestamp).getTime();
       const end = new Date(o.deliveredAt).getTime();
-      totalTime += (end-start)/60000; // minutes
+      totalTime += (end-start)/60000; 
       fulfilledCount++;
     }
   });
