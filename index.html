@@ -6,84 +6,22 @@
 <title>C&E's Cafe – Order</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: #f0f4fa;
-  color: #2a3a59;
-}
-
-header {
-  background: #4a6fa5;
-  color: white;
-  text-align: center;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-header img {
-  width: 100px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-}
-
-.hero {
-  width: 100%;
-  height: 160px;
-  background-image: url("https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg");
-  background-size: cover;
-  background-position: center;
-  border-bottom: 4px solid #4a6fa5;
-}
-
-.container {
-  padding: 16px;
-  max-width: 480px;
-  margin: auto;
-}
-
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-h3 {
-  margin-bottom: 8px;
-  color: #3b4b75;
-}
-
-input, select, button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #aac4e0;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-
+body { margin:0; font-family:'Segoe UI',sans-serif; background:#f0f4fa; }
+header { background:#4a6fa5; color:white; text-align:center; padding:16px; }
+.container { max-width:480px; margin:auto; padding:16px; }
+.card { background:white; padding:16px; border-radius:12px; margin-bottom:14px; }
 button {
-  background: #4a6fa5;
-  color: white;
-  font-weight: bold;
-  border: none;
-  margin-top: 10px;
-  cursor: pointer;
+  width:100%; padding:12px; border-radius:10px;
+  background:#4a6fa5; color:white; font-weight:bold; border:none;
 }
-
-button:disabled {
-  background: #9bb0d0;
-  cursor: not-allowed;
-}
-
-footer {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 14px;
-  color: #2a3a59;
-  font-style: italic;
+button:disabled { background:#9bb0d0; }
+.blocked {
+  background:#ffe6e6;
+  padding:16px;
+  border-radius:12px;
+  text-align:center;
+  color:#a93226;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -91,154 +29,73 @@ footer {
 <body>
 
 <header>
-  <img src="https://images2.imgbox.com/8a/e2/3ncKiPGu_o.jpg" alt="Cafe Logo">
   <h2>C&E's Cafe</h2>
 </header>
 
-<div class="hero"></div>
-
-<div class="container">
-
-  <div class="card">
-    <h3>Your Name</h3>
-    <input type="text" id="customerName" maxlength="50" placeholder="Enter your name">
-  </div>
-
-  <div class="card">
-    <h3>Select Drink</h3>
-    <select id="drink">
-      <option value="" disabled selected>Select a drink</option>
-      <option>milo & chai</option>
-      <option>C's special</option>
-      <option>E's special</option>
-      <option>megacandy</option>
-      <option>matcha & milo</option>
-      <option>black tea</option>
-      <option>green tea</option>
-      <option>lemonginger</option>
-      <option>peaceful pause</option>
-      <option>coffee</option>
-      <option>blackcurrant</option>
-      <option>apple cider</option>
-      <option>raspberry shrub</option>
-      <option>soda water</option>
-      <option>matcha strawberry</option>
-      <option>matcha plain</option>
-      <option>milo pro</option>
-      <option>milo plain</option>
-      <option>Vanilla Chai</option>
-      <option>Spice Chai</option>
-    </select>
-  </div>
-
-  <div class="card">
-    <h3>Temperature</h3>
-    <select id="temperature">
-      <option value="" disabled selected>Select</option>
-      <option>SUPER Hot!</option>
-      <option>Hot</option>
-      <option>Warm</option>
-      <option>Cool</option>
-      <option>Cold As</option>
-    </select>
-  </div>
-
-  <div class="card">
-    <h3>Milk</h3>
-    <select id="milk">
-      <option value="" disabled selected>Select</option>
-      <option>No Milk</option>
-      <option>Full Cream</option>
-      <option>Light/Skim</option>
-      <option>Oat</option>
-      <option>Almond</option>
-    </select>
-  </div>
-
-  <div class="card">
-    <h3>Sweetener</h3>
-    <select id="sweetener">
-      <option value="" disabled selected>Select</option>
-      <option>None</option>
-      <option>Honey</option>
-      <option>Sugar</option>
-    </select>
-  </div>
-
-  <button id="submitOrder" disabled>Place Order</button>
-
-  <p style="text-align:center;margin-top:12px;">
-    <a href="feedback.html">Leave feedback ⭐</a>
-  </p>
-
-</div>
-
-<footer>
-  We highly appreciate recommendations to make your next visit more relaxing
-</footer>
+<div class="container" id="app"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  get
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
-  authDomain: "drink-order-test.firebaseapp.com",
   databaseURL: "https://drink-order-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "drink-order-test",
-  messagingSenderId: "90936648282",
-  appId: "1:90936648282:web:b9854c3438319db80cae63"
+  projectId: "drink-order-test"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const ordersRef = ref(db, "orders");
 
-const fields = ["customerName","drink","temperature","milk","sweetener"];
-const submitBtn = document.getElementById("submitOrder");
-let submitting = false;
+const appDiv = document.getElementById("app");
 
-function validateForm() {
-  submitBtn.disabled = !fields.every(id => {
-    const el = document.getElementById(id);
-    return el.value && el.value.trim();
-  });
+/* Get public IP */
+async function getIP() {
+  try {
+    const r = await fetch("https://api.ipify.org?format=json");
+    return (await r.json()).ip;
+  } catch {
+    return "unknown";
+  }
 }
 
-fields.forEach(id => {
-  document.getElementById(id).addEventListener("input", validateForm);
-  document.getElementById(id).addEventListener("change", validateForm);
-});
+const ip = await getIP();
 
-submitBtn.onclick = () => {
-  if (submitting) return;
-  submitting = true;
-  submitBtn.disabled = true;
+/* Check block list */
+const blockedSnap = await get(ref(db, `blockedIPs/${ip}`));
+if (blockedSnap.exists()) {
+  appDiv.innerHTML = `
+    <div class="blocked">
+      🚫 Ordering from this device has been blocked.<br>
+      Please speak to staff if this is a mistake.
+    </div>
+  `;
+  throw new Error("Blocked");
+}
 
-  push(ordersRef, {
-    customerName: customerName.value.trim(),
-    drink: drink.value,
-    temperature: temperature.value,
-    milk: milk.value,
-    sweetener: sweetener.value,
+/* Render order form */
+appDiv.innerHTML = `
+  <div class="card"><input id="name" placeholder="Your name"></div>
+  <div class="card"><input id="drink" placeholder="Drink"></div>
+  <button id="submit">Place Order</button>
+`;
+
+document.getElementById("submit").onclick = () => {
+  push(ref(db,"orders"), {
+    customerName: name.value.trim(),
+    drink: drink.value.trim(),
+    ipAddress: ip,
     timestamp: Date.now(),
     displayTime: new Date().toLocaleString(),
-    acknowledged: false,
     fulfilled: false
-  }).then(() => {
-    alert("Order placed!");
-    fields.forEach(id => {
-      const el = document.getElementById(id);
-      el.tagName === "SELECT" ? el.selectedIndex = 0 : el.value = "";
-    });
-    submitting = false;
-  }).catch(() => {
-    alert("Order failed.");
-    submitting = false;
-  });
+  }).then(() => alert("Order placed!"));
 };
 </script>
 
 </body>
 </html>
-
