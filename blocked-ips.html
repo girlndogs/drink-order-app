@@ -6,14 +6,12 @@
 <title>C&E's Cafe - Blocked IPs</title>
 <style>
 body { font-family: Arial, sans-serif; background:#eef4fc; margin:0; }
-header { background:#3f7fbf; color:white; text-align:center; padding:16px; position:sticky; top:0; z-index:1000; }
-header button { margin-top:10px; padding:8px 14px; background:white; color:#3f7fbf; border:none; border-radius:4px; cursor:pointer; font-weight:bold; }
-
+header { background:#3f7fbf; color:white; text-align:center; padding:15px; position:sticky; top:0; z-index:1000; }
+header button { margin:5px; }
 main { max-width:800px; margin:auto; padding:20px; }
-.card { background:white; border-radius:8px; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; }
-.card span { font-weight:bold; }
-.unblock-btn { padding:6px 12px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; }
-.unblock-btn:hover { background:#c0392b; }
+.ip-card { background:white; padding:12px; margin-bottom:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.ip-card button { background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;}
+.ip-card button:hover { background:#c0392b;}
 </style>
 </head>
 <body>
@@ -23,17 +21,14 @@ main { max-width:800px; margin:auto; padding:20px; }
   <button onclick="window.location.href='staff.html'">⬅ Back to Orders</button>
 </header>
 
-<main>
-  <div id="blockedList">
-    <p>Loading blocked IPs...</p>
-  </div>
+<main id="blockedList">
+  <p>Loading blocked IPs...</p>
 </main>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAIugKjWMFbB8eDLSY5JInBM1lsyQ3bIHo",
   authDomain: "drink-order-test.firebaseapp.com",
@@ -48,34 +43,28 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const blockedRef = ref(db, "blockedIPs");
 
-const listDiv = document.getElementById("blockedList");
+const list = document.getElementById("blockedList");
+list.innerHTML = '';
 
-// Listen for blocked IPs
-onValue(blockedRef, snapshot => {
-  const data = snapshot.val();
-  listDiv.innerHTML = ""; // clear list
-  if(!data) {
-    listDiv.innerHTML = "<p>No blocked IPs.</p>";
-    return;
-  }
+onChildAdded(blockedRef, snap => {
+  const b = snap.val();
+  const ip = b.originalIP || snap.key.replace(/-/g,'.');
 
-  Object.entries(data).forEach(([ip, info]) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    const blockedAt = info.timestamp ? new Date(info.timestamp).toLocaleString() : "Unknown";
-    div.innerHTML = `
-      <span>${ip}</span>
-      <span>Blocked: ${blockedAt}</span>
-      <button class="unblock-btn">Unblock</button>
-    `;
-    div.querySelector(".unblock-btn").onclick = () => {
-      if(confirm(`Unblock IP ${ip}?`)) {
-        remove(ref(db, `blockedIPs/${ip}`));
-        alert(`IP ${ip} has been unblocked.`);
-      }
-    };
-    listDiv.appendChild(div);
-  });
+  const div = document.createElement("div");
+  div.className = "ip-card";
+  div.id = snap.key;
+  div.innerHTML = `
+    <span>${ip} (Blocked at: ${new Date(b.timestamp).toLocaleString()})</span>
+    <button>Unblock</button>
+  `;
+  list.prepend(div);
+
+  div.querySelector("button").onclick = () => {
+    if(confirm(`Unblock IP ${ip}?`)) {
+      remove(ref(db,`blockedIPs/${snap.key}`));
+      div.remove();
+    }
+  };
 });
 </script>
 
